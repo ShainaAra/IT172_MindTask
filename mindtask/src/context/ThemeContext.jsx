@@ -1,4 +1,4 @@
-// Theme context and provider
+import { createContext, useContext, useState } from "react";
 
 const ThemeCtx = createContext();
 

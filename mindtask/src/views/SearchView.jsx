@@ -1,0 +1,43 @@
+import { useState } from "react";
+
+export default function SearchView({ pages, tasks, setActiveId, setActiveNav, t }) {
+  const [query, setQuery] = useState("");
+  const q = query.toLowerCase();
+  const matchedPages = q ? pages.filter(p=>p.title.toLowerCase().includes(q)||p.content?.toLowerCase().includes(q)) : [];
+  const matchedTasks = q ? tasks.filter(tk=>tk.title.toLowerCase().includes(q)) : [];
+  return (
+    <div style={{ padding:"48px 60px 80px", maxWidth:860, margin:"0 auto", width:"100%" }}>
+      <h1 style={{ fontSize:"1.8rem", fontWeight:700, fontFamily:"'Lora',serif", color:t.text, marginBottom:20 }}>🔍 Search</h1>
+      <input value={query} onChange={e=>setQuery(e.target.value)} autoFocus placeholder="Search pages and tasks..."
+        style={{ width:"100%", background:t.inputBg, border:`1px solid ${t.border}`, borderRadius:12, padding:"13px 18px", color:t.text, fontSize:15, outline:"none", marginBottom:24 }} />
+      {q && (
+        <div>
+          {matchedPages.length > 0 && <>
+            <div style={{ fontSize:11, color:t.muted, fontWeight:600, textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:8 }}>Pages ({matchedPages.length})</div>
+            {matchedPages.map(pg=>(
+              <div key={pg.id} onClick={()=>{ setActiveId(pg.id); setActiveNav(null); }}
+                style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 14px", background:t.card, border:`1px solid ${t.border}`, borderRadius:10, cursor:"pointer", marginBottom:6 }}>
+                <span style={{ fontSize:18 }}>{pg.icon}</span>
+                <span style={{ fontSize:13.5, color:t.text }}>{pg.title}</span>
+              </div>
+            ))}
+          </>}
+          {matchedTasks.length > 0 && <>
+            <div style={{ fontSize:11, color:t.muted, fontWeight:600, textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:8, marginTop:16 }}>Tasks ({matchedTasks.length})</div>
+            {matchedTasks.map(tk=>(
+              <div key={tk.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 14px", background:t.card, border:`1px solid ${t.border}`, borderRadius:10, marginBottom:6 }}>
+                <span style={{ fontSize:14 }}>✅</span>
+                <span style={{ fontSize:13.5, color:t.text }}>{tk.title}</span>
+                <span style={{ marginLeft:"auto", fontSize:11, color:t.muted }}>{tk.status}</span>
+              </div>
+            ))}
+          </>}
+          {matchedPages.length===0 && matchedTasks.length===0 && (
+            <div style={{ textAlign:"center", color:t.muted, fontSize:14, padding:"40px 0" }}>No results for "{query}"</div>
+          )}
+        </div>
+      )}
+      {!q && <div style={{ textAlign:"center", color:t.muted, fontSize:14, padding:"40px 0" }}>Start typing to search your workspace...</div>}
+    </div>
+  );
+}
