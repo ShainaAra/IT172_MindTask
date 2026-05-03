@@ -5,7 +5,6 @@ export default function Sidebar({
   pages,
   activePage,
   setActivePage,
-  onAdd,
   onDelete,
   onChat,
   open,
@@ -98,6 +97,17 @@ export default function Sidebar({
               background: activeNav === lb ? t.accentSoft : "transparent",
               borderRadius: 7,
               fontWeight: activeNav === lb ? 500 : 400,
+              transition: "background 0.12s",
+            }}
+            onMouseEnter={(e) => {
+              if (activeNav !== lb) {
+                e.currentTarget.style.background = t.dark ? "#1e1e1e" : "#eaeae8";
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (activeNav !== lb) {
+                e.currentTarget.style.background = "transparent";
+              }
             }}
           >
             <span>{ic}</span>
@@ -176,26 +186,6 @@ export default function Sidebar({
               )}
           </div>
         ))}
-
-        {/* ADD PAGE */}
-        <button
-          className="btn sb-item"
-          onClick={onAdd}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 7,
-            padding: "5px 10px",
-            fontSize: 13,
-            color: t.muted,
-            width: "100%",
-            textAlign: "left",
-            marginTop: 2,
-          }}
-        >
-          <Ic n="plus" size={13} />
-          New page
-        </button>
       </div>
 
       {/* MindEase Banner */}

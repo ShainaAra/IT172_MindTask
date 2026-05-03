@@ -12,19 +12,45 @@ const TAGS = ["Dev","Design","AI","QA","Planning","DevOps","Research","Other"];
 export default function TaskBoard({ tasks, onUpdate }) {
   const t = useTheme();
   const [adding, setAdding] = useState(false);
-  const [nt, setNt] = useState({ title:"", priority:"medium", tag:"Dev" });
+  const [nt, setNt] = useState({ title: "New Task", priority: "medium", tag: "Dev" });
   const [filter, setFilter] = useState("all");
+  const [editingTask, setEditingTask] = useState(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [hasChanges, setHasChanges] = useState(false);
 
   const addTask = () => {
     if(!nt.title.trim()) return;
     onUpdate(p=>[...p,{id:Date.now().toString(),...nt,status:"todo"}]);
-    setNt({title:"",priority:"medium",tag:"Dev"}); setAdding(false);
+    setNt({ title: "New Task", priority: "medium", tag: "Dev" });
+    setAdding(false);
   };
+  
   const cycle = (id) => {
     const ord=["todo","in-progress","done"];
     onUpdate(p=>p.map(tk=>tk.id===id?{...tk,status:ord[(ord.indexOf(tk.status)+1)%3]}:tk));
   };
+  
   const del = (id) => onUpdate(p=>p.filter(tk=>tk.id!==id));
+  
+  const startEdit = (task) => {
+    setEditingTask(task.id);
+    setEditTitle(task.title);
+    setHasChanges(false);
+  };
+  
+  const saveEdit = () => {
+    if (editTitle.trim()) {
+      onUpdate(p=>p.map(tk=>tk.id===editingTask ? {...tk, title: editTitle} : tk));
+      setEditingTask(null);
+      setHasChanges(false);
+    }
+  };
+  
+  const cancelEdit = () => {
+    setEditingTask(null);
+    setHasChanges(false);
+  };
+  
   const filtered = filter==="all" ? tasks : tasks.filter(tk=>tk.priority===filter);
   const inp = { background:t.inputBg, border:`1px solid ${t.border}`, borderRadius:8, padding:"8px 12px", color:t.text, fontSize:13, outline:"none" };
 
@@ -56,7 +82,14 @@ export default function TaskBoard({ tasks, onUpdate }) {
       {adding && (
         <div className="slide-up" style={{ background:t.card, border:`1px solid ${t.border}`, borderRadius:12, padding:16, marginBottom:20 }}>
           <div style={{ display:"flex", gap:10, flexWrap:"wrap", alignItems:"center" }}>
-            <input value={nt.title} onChange={e=>setNt(n=>({...n,title:e.target.value}))} onKeyDown={e=>e.key==="Enter"&&addTask()} placeholder="Task title..." autoFocus style={{...inp,flex:1,minWidth:180}} />
+            <input 
+              value={nt.title} 
+              onChange={e=>setNt(n=>({...n,title:e.target.value}))} 
+              onKeyDown={e=>e.key==="Enter"&&addTask()} 
+              placeholder="Task title (e.g., Finish project report)" 
+              autoFocus 
+              style={{...inp,flex:1,minWidth:180}} 
+            />
             <select value={nt.priority} onChange={e=>setNt(n=>({...n,priority:e.target.value}))} style={{...inp,width:"auto"}}>
               {["high","medium","low"].map(p=><option key={p} value={p}>{p.charAt(0).toUpperCase()+p.slice(1)} Priority</option>)}
             </select>
@@ -82,17 +115,42 @@ export default function TaskBoard({ tasks, onUpdate }) {
               <div style={{ display:"flex", flexDirection:"column", gap:9, minHeight:70 }}>
                 {colTasks.map(tk=>(
                   <div key={tk.id} className="task-card" style={{ background:t.card, border:`1px solid ${t.border}`, borderRadius:11, padding:"13px 14px", boxShadow:t.dark?"0 1px 6px rgba(0,0,0,0.35)":"0 1px 6px rgba(0,0,0,0.06)" }}>
-                    <div style={{ display:"flex", alignItems:"flex-start", gap:8 }}>
-                      <button className="btn" onClick={()=>cycle(tk.id)} style={{ color:col.dot, padding:0, marginTop:1, flexShrink:0, lineHeight:0 }}>
-                        <Ic n={tk.status==="done"?"check":"circle"} size={15} />
-                      </button>
-                      <span style={{ fontSize:13, flex:1, lineHeight:1.45, textDecoration:tk.status==="done"?"line-through":"none", color:tk.status==="done"?t.muted:t.text }}>{tk.title}</span>
-                      <button className="btn" onClick={()=>del(tk.id)} style={{ color:t.muted, padding:1, opacity:0.4, lineHeight:0, flexShrink:0 }}><Ic n="x" size={12} /></button>
-                    </div>
-                    <div style={{ display:"flex", gap:6, marginTop:9, paddingLeft:23 }}>
-                      <span className={`p${tk.priority[0]}`} style={{ fontSize:10.5, padding:"2px 8px", borderRadius:6, fontWeight:500 }}>{tk.priority}</span>
-                      <span style={{ fontSize:10.5, padding:"2px 8px", borderRadius:6, background:t.tagBg, color:t.muted, fontWeight:500 }}>{tk.tag}</span>
-                    </div>
+                    {editingTask === tk.id ? (
+                      <div>
+                        <input
+                          value={editTitle}
+                          onChange={(e) => {
+                            setEditTitle(e.target.value);
+                            setHasChanges(true);
+                          }}
+                          autoFocus
+                          style={{ width: "100%", ...inp, marginBottom: 10 }}
+                        />
+                        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                          <button onClick={cancelEdit} style={{ padding: "4px 12px", fontSize: 11, background: "transparent", border: `1px solid ${t.border}`, borderRadius: 6, color: t.muted, cursor: "pointer" }}>
+                            Cancel
+                          </button>
+                          <button onClick={saveEdit} disabled={!hasChanges} style={{ padding: "4px 12px", fontSize: 11, background: hasChanges ? t.accent : t.muted, border: "none", borderRadius: 6, color: "#fff", cursor: hasChanges ? "pointer" : "not-allowed", opacity: hasChanges ? 1 : 0.5 }}>
+                            💾 Save
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div style={{ display:"flex", alignItems:"flex-start", gap:8 }}>
+                          <button className="btn" onClick={()=>cycle(tk.id)} style={{ color:col.dot, padding:0, marginTop:1, flexShrink:0, lineHeight:0 }}>
+                            <Ic n={tk.status==="done"?"check":"circle"} size={15} />
+                          </button>
+                          <span style={{ fontSize:13, flex:1, lineHeight:1.45, textDecoration:tk.status==="done"?"line-through":"none", color:tk.status==="done"?t.muted:t.text }}>{tk.title}</span>
+                          <button className="btn" onClick={()=>startEdit(tk)} style={{ color:t.muted, padding:1, opacity:0.5, lineHeight:0, flexShrink:0 }}><Ic n="edit" size={12} /></button>
+                          <button className="btn" onClick={()=>del(tk.id)} style={{ color:t.muted, padding:1, opacity:0.4, lineHeight:0, flexShrink:0 }}><Ic n="x" size={12} /></button>
+                        </div>
+                        <div style={{ display:"flex", gap:6, marginTop:9, paddingLeft:23 }}>
+                          <span className={`p${tk.priority[0]}`} style={{ fontSize:10.5, padding:"2px 8px", borderRadius:6, fontWeight:500 }}>{tk.priority}</span>
+                          <span style={{ fontSize:10.5, padding:"2px 8px", borderRadius:6, background:t.tagBg, color:t.muted, fontWeight:500 }}>{tk.tag}</span>
+                        </div>
+                      </>
+                    )}
                   </div>
                 ))}
                 {colTasks.length===0 && (
@@ -106,5 +164,3 @@ export default function TaskBoard({ tasks, onUpdate }) {
     </div>
   );
 }
-
-// ─── CHAT PANEL ──────────────────────────────────────────────────────────────

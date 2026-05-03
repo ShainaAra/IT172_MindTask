@@ -9,6 +9,7 @@ import ChatPanel from "../components/chat/ChatPanel";
 import HomeView from "../views/HomeView";
 import SearchView from "../views/SearchView";
 import InboxView from "../views/InboxView";
+import { generateNewPage } from "../data/defaults";
 
 export default function Dashboard() {
   const { user, getData, setPages, setTasks, logout } = useAuth();
@@ -46,17 +47,9 @@ export default function Dashboard() {
   };
 
   const addPage = () => {
-    const id = `${user.id}-p${Date.now()}`;
-    const newPage = {
-      id,
-      title: "Untitled",
-      icon: "📄",
-      content: "",
-      type: "page",
-    };
-
+    const newPage = generateNewPage(user?.id || "user");
     setPages((p) => [...p, newPage]);
-    setActiveId(id);
+    setActiveId(newPage.id);
   };
 
   const deletePage = (id) => {
@@ -109,7 +102,7 @@ export default function Dashboard() {
       return <TaskBoard tasks={tasks} onUpdate={setTasks} />;
     }
 
-    return <PageEditor page={activePage} onUpdate={updatePage} />;
+    return <PageEditor page={activePage} onUpdate={updatePage} onChat={() => setChatOpen(true)} />;
   };
 
   return (

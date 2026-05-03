@@ -69,6 +69,44 @@ export const DEFAULT_TASKS = [
   },
 ];
 
+// Helper function to generate a new page with proper default content
+export function generateNewPage(uid = "user") {
+  const timestamp = Date.now();
+  return {
+    id: `${uid}-new-${timestamp}`,
+    title: "New Page",
+    icon: "📄",
+    content: `# New Page
+
+Start writing your content here...
+
+## Quick Tips
+
+- Use **#** for headings (e.g., # Title)
+- Use **-** for bullet points
+- Use **>** for quotes
+- Use **bold** or *italic* for emphasis
+- Use **1.** for numbered lists
+
+---
+
+Happy writing! ✨`,
+    type: "page",
+  };
+}
+
+// Helper function to generate a new task with proper default values
+export function generateNewTask(uid = "user") {
+  const timestamp = Date.now();
+  return {
+    id: `${uid}-task-${timestamp}`,
+    title: "New Task",
+    status: "todo",
+    priority: "medium",
+    tag: "Dev",
+  };
+}
+
 export function makeUserData(uid) {
   return {
     pages: DEFAULT_PAGES.map((p) => ({ ...p, id: `${uid}-${p.id}` })),
