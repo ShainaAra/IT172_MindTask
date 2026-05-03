@@ -69,28 +69,19 @@ export const DEFAULT_TASKS = [
   },
 ];
 
-// Helper function to generate a new page with proper default content
+// Counter for generating unique note titles
+let noteCounter = 1;
+
+// Helper function to generate a new page with EMPTY content (no pre-filled text)
 export function generateNewPage(uid = "user") {
   const timestamp = Date.now();
+  const noteNumber = noteCounter++;
+  
   return {
     id: `${uid}-new-${timestamp}`,
-    title: "New Page",
+    title: `Untitled ${noteNumber}`,
     icon: "📄",
-    content: `# New Page
-
-Start writing your content here...
-
-## Quick Tips
-
-- Use **#** for headings (e.g., # Title)
-- Use **-** for bullet points
-- Use **>** for quotes
-- Use **bold** or *italic* for emphasis
-- Use **1.** for numbered lists
-
----
-
-Happy writing! ✨`,
+    content: "", // Empty content - user will write their own
     type: "page",
   };
 }
@@ -107,7 +98,13 @@ export function generateNewTask(uid = "user") {
   };
 }
 
+// Reset counter function
+export function resetNoteCounter() {
+  noteCounter = 1;
+}
+
 export function makeUserData(uid) {
+  resetNoteCounter();
   return {
     pages: DEFAULT_PAGES.map((p) => ({ ...p, id: `${uid}-${p.id}` })),
     tasks: DEFAULT_TASKS.map((t) => ({ ...t, id: `${uid}-${t.id}` })),
