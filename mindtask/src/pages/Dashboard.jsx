@@ -4,6 +4,7 @@ import { useTheme } from "../context/ThemeContext";
 import Ic from "../components/common/Ic";
 import Sidebar from "../components/layout/Sidebar";
 import PageEditor from "../components/pages/PageEditor";
+import NotesGrid from "../components/notes/NotesGrid";
 import TaskBoard from "../components/tasks/TaskBoard";
 import ChatPanel from "../components/chat/ChatPanel";
 import HomeView from "../views/HomeView";
@@ -22,6 +23,7 @@ export default function Dashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [chatOpen, setChatOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [showNotesGrid, setShowNotesGrid] = useState(false);
   const userMenuRef = useRef(null);
 
   useEffect(() => {
@@ -38,22 +40,54 @@ export default function Dashboard() {
   const data = getData();
   const pages = data?.pages || [];
   const tasks = data?.tasks || [];
+  
+  // Find the My Notes page ID
+  const myNotesPage = pages.find(p => p.title === "My Notes");
   const activePage = pages.find((p) => p.id === activeId) || pages[0];
 
   const handleSetActivePage = (id) => {
-    setActiveId(id);
-    setActiveNav(null);
+    const clickedPage = pages.find(p => p.id === id);
+    if (clickedPage?.title === "My Notes") {
+      setShowNotesGrid(true);
+      setActiveNav(null);
+      setOpenedNote(null);
+      setActiveId(null);
+    } else {
+      setActiveId(id);
+      setActiveNav(null);
+      setOpenedNote(null);
+      setShowNotesGrid(false);
+    }
+  };
+
+  const handleOpenNote = (note) => {
+    console.log("Opening note:", note); // Debug log
+    setActiveId(note.id);
+    setOpenedNote(note);
+    setShowNotesGrid(false);
+  };
+
+  const handleBackToNotesGrid = () => {
+    setShowNotesGrid(true);
     setOpenedNote(null);
+    setActiveNav(null);
+    setActiveId(myNotesPage?.id || null);
   };
 
   const addPage = () => {
     const newPage = generateNewPage(user?.id || "user");
     setPages((p) => [...p, newPage]);
     setActiveId(newPage.id);
+    setOpenedNote(newPage);
+    setShowNotesGrid(false);
   };
 
   const deletePage = (id) => {
     setPages((p) => p.filter((pg) => pg.id !== id));
+    if (activeId === id) {
+      setActiveId(welcomePageId);
+      setShowNotesGrid(false);
+    }
   };
 
   const updatePage = (id, field, val) => {
@@ -68,6 +102,8 @@ export default function Dashboard() {
     ? activeNav
     : openedNote
     ? cleanTitle(openedNote.title)
+    : showNotesGrid
+    ? "My Notes"
     : activePage
     ? cleanTitle(activePage.title)
     : "MindTask";
@@ -98,11 +134,38 @@ export default function Dashboard() {
 
     if (activeNav === "Inbox") return <InboxView t={t} />;
 
+    // Show NotesGrid
+    if (showNotesGrid) {
+      const notePages = pages.filter(p => p.type !== "tasks" && p.title !== "Welcome to MindTask");
+      return (
+        <NotesGrid
+          notes={notePages}
+          onOpen={handleOpenNote}
+          onAdd={addPage}
+          t={t}
+          user={user}
+        />
+      );
+    }
+
+    // Show TaskBoard
     if (activePage?.type === "tasks") {
       return <TaskBoard tasks={tasks} onUpdate={setTasks} />;
     }
 
-    return <PageEditor page={activePage} onUpdate={updatePage} onChat={() => setChatOpen(true)} />;
+    // Show PageEditor for notes and other pages
+    if (activePage) {
+      return (
+        <PageEditor 
+          page={activePage} 
+          onUpdate={updatePage} 
+          user={user} 
+          onBack={handleBackToNotesGrid}
+        />
+      );
+    }
+
+    return <div style={{ padding: "48px", color: t.muted }}>Select a page from the sidebar</div>;
   };
 
   return (
@@ -117,7 +180,7 @@ export default function Dashboard() {
     >
       <Sidebar
         pages={pages}
-        activePage={activeNav ? null : activePage}
+        activePage={activeNav ? null : (showNotesGrid ? null : activePage)}
         setActivePage={handleSetActivePage}
         onAdd={addPage}
         onDelete={deletePage}
@@ -147,7 +210,16 @@ export default function Dashboard() {
               background: "transparent",
               border: "none",
               cursor: "pointer",
+              borderRadius: 6,
+              padding: 6,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              transition: "background 0.2s",
+              outline: "none",
             }}
+            onMouseEnter={(e) => e.currentTarget.style.background = t.hover}
+            onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
           >
             <Ic n="menu" size={16} />
           </button>
@@ -161,7 +233,16 @@ export default function Dashboard() {
               background: "transparent",
               border: "none",
               cursor: "pointer",
+              borderRadius: 6,
+              padding: 6,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              transition: "background 0.2s",
+              outline: "none",
             }}
+            onMouseEnter={(e) => e.currentTarget.style.background = t.hover}
+            onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
           >
             <Ic n={t.dark ? "sun" : "moon"} size={16} />
           </button>
@@ -182,7 +263,10 @@ export default function Dashboard() {
                 cursor: "pointer",
                 fontWeight: 700,
                 fontSize: 12,
+                transition: "opacity 0.2s",
               }}
+              onMouseEnter={(e) => e.currentTarget.style.opacity = "0.85"}
+              onMouseLeave={(e) => e.currentTarget.style.opacity = "1"}
             >
               {user?.avatar}
             </div>
@@ -230,7 +314,10 @@ export default function Dashboard() {
                     cursor: "pointer",
                     padding: "8px 10px",
                     borderRadius: 6,
+                    transition: "background 0.2s",
                   }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = t.hover}
+                  onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
                 >
                   Logout
                 </button>
