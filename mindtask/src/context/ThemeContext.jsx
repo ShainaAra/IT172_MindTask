@@ -1,6 +1,5 @@
-import { createContext, useContext, useState } from "react";
-
-const ThemeCtx = createContext();
+import { useState } from "react";
+import { ThemeCtx } from "./ThemeCtx";
 
 export function ThemeProvider({ children }) {
   const [dark, setDark] = useState(true);
@@ -28,4 +27,3 @@ export function ThemeProvider({ children }) {
   return <ThemeCtx.Provider value={c}>{children}</ThemeCtx.Provider>;
 }
 
-export const useTheme = () => useContext(ThemeCtx);

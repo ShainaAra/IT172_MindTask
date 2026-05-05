@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useTheme } from "../../context/ThemeContext";
+import { useState, useEffect } from "react";
+import { useTheme } from "../../context/useTheme";
 import Ic from "../common/Ic";
 
 const COLS = [
@@ -14,22 +14,162 @@ export default function TaskBoard({ tasks, onUpdate }) {
   const [adding, setAdding] = useState(false);
   const [nt, setNt] = useState({ title:"", priority:"medium", tag:"Dev" });
   const [filter, setFilter] = useState("all");
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
+
+  // Debug: log tasks when they change
+  useEffect(() => {
+    console.log("Tasks in TaskBoard:", tasks);
+  }, [tasks]);
 
   const addTask = () => {
     if(!nt.title.trim()) return;
-    onUpdate(p=>[...p,{id:Date.now().toString(),...nt,status:"todo"}]);
-    setNt({title:"",priority:"medium",tag:"Dev"}); setAdding(false);
+    const newTask = {
+      id: Date.now().toString(),
+      title: nt.title,
+      priority: nt.priority,
+      tag: nt.tag,
+      status: "todo"
+    };
+    console.log("Adding new task:", newTask);
+    onUpdate(prev => [...prev, newTask]);
+    setNt({title:"", priority:"medium", tag:"Dev"});
+    setAdding(false);
   };
+
   const cycle = (id) => {
-    const ord=["todo","in-progress","done"];
-    onUpdate(p=>p.map(tk=>tk.id===id?{...tk,status:ord[(ord.indexOf(tk.status)+1)%3]}:tk));
+    const ord = ["todo","in-progress","done"];
+    const task = tasks.find(tk => tk.id === id);
+    if (!task) return;
+    
+    const currentIndex = ord.indexOf(task.status);
+    const newStatus = ord[(currentIndex + 1) % 3];
+    
+    console.log(`Moving task ${id} from ${task.status} to ${newStatus}`);
+    
+    // Update local state - this triggers onUpdate which calls setTasks in AuthContext
+    const updatedTasks = tasks.map(tk => 
+      tk.id === id ? { ...tk, status: newStatus } : tk
+    );
+    onUpdate(updatedTasks);
   };
-  const del = (id) => onUpdate(p=>p.filter(tk=>tk.id!==id));
-  const filtered = filter==="all" ? tasks : tasks.filter(tk=>tk.priority===filter);
-  const inp = { background:t.inputBg, border:`1px solid ${t.border}`, borderRadius:8, padding:"8px 12px", color:t.text, fontSize:13, outline:"none" };
+
+  const confirmDelete = (id) => {
+    setDeleteConfirm(id);
+  };
+
+  const handleDelete = () => {
+    if (deleteConfirm) {
+      console.log("Deleting task:", deleteConfirm);
+      onUpdate(prev => prev.filter(tk => tk.id !== deleteConfirm));
+      setDeleteConfirm(null);
+    }
+  };
+
+  const cancelDelete = () => {
+    setDeleteConfirm(null);
+  };
+
+  const filtered = filter === "all" ? tasks : tasks.filter(tk => tk.priority === filter);
+  
+  const inp = { 
+    background: t.inputBg, 
+    border: `1px solid ${t.border}`, 
+    borderRadius: 8, 
+    padding: "8px 12px", 
+    color: t.text, 
+    fontSize: 13, 
+    outline: "none" 
+  };
 
   return (
     <div style={{ padding:"48px 60px 80px", maxWidth:1100, margin:"0 auto", width:"100%" }}>
+      {/* Delete Confirmation Modal */}
+      {deleteConfirm && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: "rgba(0, 0, 0, 0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+          }}
+          onClick={cancelDelete}
+        >
+          <div
+            style={{
+              background: t.surface,
+              borderRadius: 16,
+              padding: 24,
+              width: 380,
+              maxWidth: "90%",
+              boxShadow: t.shadowLg,
+              border: `1px solid ${t.border}`,
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ textAlign: "center", marginBottom: 20 }}>
+              <div style={{ fontSize: 48, marginBottom: 12 }}>🗑️</div>
+              <h3 style={{ fontSize: 18, fontWeight: 600, color: t.text, marginBottom: 8 }}>
+                Delete Task?
+              </h3>
+              <p style={{ fontSize: 13, color: t.muted }}>
+                Are you sure you want to delete this task? This action cannot be undone.
+              </p>
+            </div>
+            
+            <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
+              <button
+                onClick={cancelDelete}
+                style={{
+                  padding: "10px 20px",
+                  borderRadius: 8,
+                  fontSize: 13,
+                  fontWeight: 500,
+                  cursor: "pointer",
+                  background: "transparent",
+                  border: `1px solid ${t.border}`,
+                  color: t.muted,
+                  transition: "all 0.2s",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = t.accent;
+                  e.currentTarget.style.color = t.accent;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = t.border;
+                  e.currentTarget.style.color = t.muted;
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                style={{
+                  padding: "10px 20px",
+                  borderRadius: 8,
+                  fontSize: 13,
+                  fontWeight: 500,
+                  cursor: "pointer",
+                  background: "#ef4444",
+                  border: "none",
+                  color: "#fff",
+                  transition: "all 0.2s",
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = "#dc2626"}
+                onMouseLeave={(e) => e.currentTarget.style.background = "#ef4444"}
+              >
+                Delete Task
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div style={{ display:"flex", alignItems:"flex-end", gap:12, marginBottom:26 }}>
         <span style={{ fontSize:42 }}>✅</span>
         <div>
@@ -87,7 +227,9 @@ export default function TaskBoard({ tasks, onUpdate }) {
                         <Ic n={tk.status==="done"?"check":"circle"} size={15} />
                       </button>
                       <span style={{ fontSize:13, flex:1, lineHeight:1.45, textDecoration:tk.status==="done"?"line-through":"none", color:tk.status==="done"?t.muted:t.text }}>{tk.title}</span>
-                      <button className="btn" onClick={()=>del(tk.id)} style={{ color:t.muted, padding:1, opacity:0.4, lineHeight:0, flexShrink:0 }}><Ic n="x" size={12} /></button>
+                      <button className="btn" onClick={()=>confirmDelete(tk.id)} style={{ color:t.muted, padding:1, opacity:0.4, lineHeight:0, flexShrink:0 }}>
+                        <Ic n="x" size={12} />
+                      </button>
                     </div>
                     <div style={{ display:"flex", gap:6, marginTop:9, paddingLeft:23 }}>
                       <span className={`p${tk.priority[0]}`} style={{ fontSize:10.5, padding:"2px 8px", borderRadius:6, fontWeight:500 }}>{tk.priority}</span>
@@ -106,5 +248,3 @@ export default function TaskBoard({ tasks, onUpdate }) {
     </div>
   );
 }
-
-// ─── CHAT PANEL ──────────────────────────────────────────────────────────────

@@ -1,5 +1,7 @@
-import { AuthProvider, useAuth } from "./context/AuthContext";
-import { ThemeProvider, useTheme } from "./context/ThemeContext";
+import { AuthProvider } from "./context/AuthContext";
+import { ThemeProvider } from "./context/ThemeContext";
+import { useAuth } from "./context/useAuth";
+import { useTheme } from "./context/useTheme";
 import GlobalStyles from "./styles/GlobalStyles";
 import AuthPage from "./pages/AuthPage";
 import Dashboard from "./pages/Dashboard";

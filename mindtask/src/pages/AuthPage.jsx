@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { useAuth } from "../context/AuthContext";
-import { useTheme } from "../context/ThemeContext";
+import { useAuth } from "../context/useAuth";
+import { useTheme } from "../context/useTheme";
 import Ic from "../components/common/Ic";
 
 export default function AuthPage() {
@@ -32,6 +32,14 @@ export default function AuthPage() {
     }
 
     setLoading(false);
+  };
+
+  // Handle Enter key press
+  const handleKeyPress = (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      submit();
+    }
   };
 
   const quick = (u) => {
@@ -136,13 +144,17 @@ export default function AuthPage() {
             ))}
           </div>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div 
+            style={{ display: "flex", flexDirection: "column", gap: 14 }}
+            onKeyPress={handleKeyPress}  // ADD THIS - handles Enter key on the whole form
+          >
             {mode === "register" && (
               <div>
                 <label style={lbl}>Full Name</label>
                 <input
                   value={f.name}
                   onChange={(e) => upd("name", e.target.value)}
+                  onKeyPress={handleKeyPress}  // ADD THIS
                   style={inp}
                 />
               </div>
@@ -155,6 +167,7 @@ export default function AuthPage() {
                 type="email"
                 value={f.email}
                 onChange={(e) => upd("email", e.target.value)}
+                onKeyPress={handleKeyPress}  // ADD THIS
                 placeholder="you@example.com"
                 style={inp}
               />
@@ -168,6 +181,7 @@ export default function AuthPage() {
                   type={showPw ? "text" : "password"}
                   value={f.password}
                   onChange={(e) => upd("password", e.target.value)}
+                  onKeyPress={handleKeyPress}  // ADD THIS
                   placeholder="••••••••"
                   style={{ ...inp, paddingRight: 42 }}
                 />

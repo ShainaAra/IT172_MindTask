@@ -2,7 +2,7 @@ export default function InboxView({ t }) {
   const items = [
     { icon:"💬", title:"MindEase is ready", desc:"Your wellness companion is available anytime.", time:"Just now" },
     { icon:"✅", title:"Task board set up", desc:"Your tasks have been pre-loaded. Start managing them!", time:"Today" },
-    { icon:"🌱", title:"Welcome to MindTask", desc:"Your workspace is ready. Start creating pages.", time:"Today" },
+    { icon:"🌱", title:"Welcome to MindTask", desc:"Your workspace is ready. Start creating notes.", time:"Today" },
   ];
   return (
     <div style={{ padding:"48px 60px 80px", maxWidth:860, margin:"0 auto", width:"100%" }}>
@@ -22,5 +22,3 @@ export default function InboxView({ t }) {
     </div>
   );
 }
-
-// ─── DASHBOARD ───────────────────────────────────────────────────────────────

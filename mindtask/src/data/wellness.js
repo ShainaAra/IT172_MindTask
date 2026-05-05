@@ -9,21 +9,18 @@ export const WELLNESS = [
   { triggers:["angry","frustrated","mad","irritated","annoyed"],                           text:"Frustration signals that something matters to you. 🔥 Try labeling it out loud: 'I feel frustrated because...' — this tiny act of naming actually calms your nervous system. What's at the root of it?" },
   { triggers:["hello","hi","hey","hiya"],                                                  text:"Hey there! 👋 So glad you opened MindEase. How are you feeling today — honestly? Whether it's work stress, personal stuff, or just a general blah, I'm here to listen." },
 ];
+
 export function fallbackResponse(msg) {
   const lower = msg.toLowerCase();
   for (const w of WELLNESS) if (w.triggers.some(t => lower.includes(t))) return w.text;
   return "I'm here with you. 🤍 Whatever you're carrying right now is valid. Would you like to talk about what's on your mind?";
 }
-export async function getAIResponse(msg, name) {
+
+export async function getAIResponse(msg, userId) {
   try {
-    const res = await fetch("/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: msg, name }),
-    });
-    if (!res.ok) throw new Error("AI service error");
-    const data = await res.json();
-    return data?.reply || fallbackResponse(msg);
+    const { sendChatMessage } = await import("../api.js");
+    const res = await sendChatMessage(msg, userId);
+    return res?.reply || fallbackResponse(msg);
   } catch (error) {
     console.error("getAIResponse error:", error);
     return fallbackResponse(msg);

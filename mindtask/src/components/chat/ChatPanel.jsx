@@ -1,24 +1,52 @@
 import { useEffect, useRef, useState } from "react";
-import { useAuth } from "../../context/AuthContext";
-import { useTheme } from "../../context/ThemeContext";
+import { useAuth } from "../../context/useAuth";
+import { useTheme } from "../../context/useTheme";
 import Ic from "../common/Ic";
 import { getAIResponse } from "../../data/wellness";
+import { getChatHistory } from "../../api";
 
 const QUICK = ["I'm overwhelmed 😔","Need a break 😮‍💨","Feeling anxious 😟","Feeling good! 🌟","Can't focus 🎯"];
+const INITIAL_MSG = (name) => ({ role:"assistant", text:`Hey ${name?.split(" ")[0]||"there"}! 🌿 I'm MindEase, your wellness companion. How are you feeling today? Whether you're stressed, overwhelmed, or just need to talk — I'm here.` });
 
 export default function ChatPanel({ onClose }) {
   const t = useTheme();
   const { user } = useAuth();
-  const [msgs, setMsgs] = useState([{ role:"assistant", text:`Hey ${user?.name?.split(" ")[0]||"there"}! 🌿 I'm MindEase, your wellness companion. How are you feeling today? Whether you're stressed, overwhelmed, or just need to talk — I'm here.` }]);
+  const [msgs, setMsgs] = useState([]);
   const [input, setInput] = useState("");
   const [typing, setTyping] = useState(false);
   const endRef = useRef(null);
+
+  // Load chat history on mount
+  useEffect(() => {
+    const loadChatHistory = async () => {
+      if (!user?.id) return;
+      try {
+        const history = await getChatHistory(user.id);
+        if (history && history.length > 0) {
+          // Transform DB format to UI format
+          const formattedMsgs = history.map((chat) => [
+            { role: "user", text: chat.message },
+            { role: "assistant", text: chat.response },
+          ]).flat();
+          setMsgs(formattedMsgs);
+        } else {
+          // No history, show initial message
+          setMsgs([INITIAL_MSG(user?.name)]);
+        }
+      } catch (error) {
+        console.error("Error loading chat history:", error);
+        setMsgs([INITIAL_MSG(user?.name)]);
+      }
+    };
+    loadChatHistory();
+  }, [user?.id, user?.name]);
+
   useEffect(()=>{ endRef.current?.scrollIntoView({behavior:"smooth"}); },[msgs,typing]);
 
   const send = async (txt) => {
     const msg = (txt||input).trim(); if(!msg) return;
     setInput(""); setMsgs(m=>[...m,{role:"user",text:msg}]); setTyping(true);
-    const reply = await getAIResponse(msg, user?.name||"friend");
+    const reply = await getAIResponse(msg, user?.id);
     setTyping(false); setMsgs(m=>[...m,{role:"assistant",text:reply}]);
   };
 

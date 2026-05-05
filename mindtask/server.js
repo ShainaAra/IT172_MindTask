@@ -204,7 +204,7 @@ app.get("/api/chats/:userId", async (req, res) => {
 
     const chats = await prisma.chat.findMany({
       where: { userId },
-      orderBy: { createdAt: "desc" },
+      orderBy: { createdAt: "asc" },
     });
 
     res.json(chats);
@@ -219,12 +219,14 @@ app.get("/api/chats/:userId", async (req, res) => {
 // CREATE NOTE
 app.post("/api/notes", async (req, res) => {
   try {
-    const { title, content, userId } = req.body;
+    const { title, content, type, icon, userId } = req.body;
 
     const note = await prisma.note.create({
       data: {
         title,
         content,
+        type,
+        icon: icon || "📄",
         userId,
       },
     });
@@ -335,6 +337,123 @@ app.get("/api/pages/:userId", async (req, res) => {
   } catch (error) {
     res.status(500).json({
       message: "Failed to get pages",
+      error: error.message,
+    });
+  }
+});
+
+// UPDATE PAGE
+app.put("/api/pages/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, content } = req.body;
+
+    const page = await prisma.page.update({
+      where: { id },
+      data: { title, content },
+    });
+
+    res.json(page);
+  } catch (error) {
+    res.status(500).json({
+      message: "Failed to update page",
+      error: error.message,
+    });
+  }
+});
+
+// DELETE PAGE
+app.delete("/api/pages/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    await prisma.page.delete({
+      where: { id },
+    });
+
+    res.json({ message: "Page deleted successfully" });
+  } catch (error) {
+    res.status(500).json({
+      message: "Failed to delete page",
+      error: error.message,
+    });
+  }
+});
+
+// UPDATE TASK
+app.put("/api/tasks/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, status, priority } = req.body;
+
+    const task = await prisma.task.update({
+      where: { id },
+      data: { title, status, priority },
+    });
+
+    res.json(task);
+  } catch (error) {
+    res.status(500).json({
+      message: "Failed to update task",
+      error: error.message,
+    });
+  }
+});
+
+// DELETE TASK
+app.delete("/api/tasks/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    await prisma.task.delete({
+      where: { id },
+    });
+
+    res.json({ message: "Task deleted successfully" });
+  } catch (error) {
+    res.status(500).json({
+      message: "Failed to delete task",
+      error: error.message,
+    });
+  }
+});
+
+// UPDATE NOTE
+app.put("/api/notes/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, content, type, icon } = req.body;
+
+    const updateData = { title, content, type };
+    if (icon !== undefined) updateData.icon = icon;
+
+    const note = await prisma.note.update({
+      where: { id },
+      data: updateData,
+    });
+
+    res.json(note);
+  } catch (error) {
+    res.status(500).json({
+      message: "Failed to update note",
+      error: error.message,
+    });
+  }
+});
+
+// DELETE NOTE
+app.delete("/api/notes/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    await prisma.note.delete({
+      where: { id },
+    });
+
+    res.json({ message: "Note deleted successfully" });
+  } catch (error) {
+    res.status(500).json({
+      message: "Failed to delete note",
       error: error.message,
     });
   }
