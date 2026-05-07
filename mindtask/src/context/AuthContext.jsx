@@ -1,13 +1,75 @@
 import { useRef, useState, useEffect } from "react";
 import { DEMO_USERS, makeUserData, DEFAULT_NOTES, DEFAULT_TASKS } from "../data/defaults";
 import { AuthCtx } from "./AuthCtx";
-import { registerUser as registerUserAPI, loginUser as loginUserAPI, getNotes, getTasks, createNote, updateNote, deleteNote, createTask, updateTask, deleteTask } from "../api";
+import { registerUser as registerUserAPI, loginUser as loginUserAPI, getNotes, getTasks, createNote, updateNote, deleteNote, createTask, updateTask, deleteTask, getChatHistory } from "../api";
+
+// Helper: Basic email validation
+const isValidEmail = (email) => {
+  // Simple but robust regex for most common email patterns
+  const emailRegex = /^[^\s@]+@([^\s@]+\.)+[^\s@]+$/;
+  return emailRegex.test(email.trim());
+};
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [err, setErr] = useState("");
   const [store, setStore] = useState({});
   const [loading, setLoading] = useState(false);
+  const [chatHistory, setChatHistory] = useState([]);
+  const [chatLoading, setChatLoading] = useState(false);
+  const [chatVersion, setChatVersion] = useState(0);
+
+  const bumpChatVersion = () => setChatVersion((v) => v + 1);
+
+  const formatChatHistory = (history = []) =>
+    history.flatMap((chat) => {
+      const messageText = chat.message?.trim();
+      const assistantEntry = { role: "assistant", text: chat.response };
+
+      if (!messageText) {
+        return [assistantEntry];
+      }
+
+      return [
+        { role: "user", text: messageText },
+        assistantEntry,
+      ];
+    });
+
+  const createWelcomeChat = () => [
+    {
+      role: "assistant",
+      text: `Hey ${user?.name?.split(" ")[0] || "there"}! 🌿 I'm MindEase, your wellness companion. How are you feeling today? Whether you're stressed, overwhelmed, or just need to talk — I'm here.`,
+    },
+  ];
+
+  const loadChatHistory = async (userId) => {
+    if (!userId) return createWelcomeChat();
+    setChatLoading(true);
+    try {
+      const history = await getChatHistory(userId);
+      const formatted = formatChatHistory(history);
+      const messages = formatted.length > 0 ? formatted : createWelcomeChat();
+      setChatHistory(messages);
+      return messages;
+    } catch (error) {
+      console.error("Error loading chat history:", error);
+      const messages = createWelcomeChat();
+      setChatHistory(messages);
+      return messages;
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
+  const refreshChatHistory = async () => {
+    if (!user?.id) return [];
+    return await loadChatHistory(user.id);
+  };
+
+  const appendChatMessage = (message) => {
+    setChatHistory((prev) => [...prev, message]);
+  };
 
   // Get user initials from name (e.g., "Jenella Yvonne" -> "JY")
   const getUserInitials = () => {
@@ -33,6 +95,14 @@ export function AuthProvider({ children }) {
     const index = user.name.length % colors.length;
     return colors[index];
   };
+
+  useEffect(() => {
+    if (!user?.id) {
+      setChatHistory([]);
+      return;
+    }
+    loadChatHistory(user.id);
+  }, [user?.id]);
 
   // Fetch user data from backend
   const fetchUserData = async (userId) => {
@@ -99,8 +169,14 @@ export function AuthProvider({ children }) {
     }
   };
 
-  // Register with backend
+  // Register with backend + frontend email validation
   const register = async (name, email, pw) => {
+    // Validate email before any API call
+    if (!isValidEmail(email)) {
+      setErr("Please enter a valid email address (e.g., name@example.com)");
+      return false;
+    }
+
     try {
       setLoading(true);
       setErr("");
@@ -137,8 +213,14 @@ export function AuthProvider({ children }) {
     }
   };
 
-  // Login with backend
+  // Login with backend + frontend email validation
   const login = async (email, pw) => {
+    // Validate email before any API call
+    if (!isValidEmail(email)) {
+      setErr("Please enter a valid email address (e.g., name@example.com)");
+      return false;
+    }
+
     try {
       setLoading(true);
       setErr("");
@@ -247,7 +329,7 @@ export function AuthProvider({ children }) {
         if (!existingTask) {
           // New task - create in backend
           console.log("Creating new task:", task.title);
-          const createdTask = await createTask(task.title, task.status, task.priority, user.id);
+          const createdTask = await createTask(task.title, task.status, task.priority, user.id, task.tag);
           // Replace temp ID with real MongoDB ID
           updatedTasks[i] = createdTask;
         } else {
@@ -255,14 +337,16 @@ export function AuthProvider({ children }) {
           const titleChanged = existingTask.title !== task.title;
           const statusChanged = existingTask.status !== task.status;
           const priorityChanged = existingTask.priority !== task.priority;
+          const tagChanged = existingTask.tag !== task.tag;
           
-          if (titleChanged || statusChanged || priorityChanged) {
+          if (titleChanged || statusChanged || priorityChanged || tagChanged) {
             console.log(`Updating task ${task.id}:`, {
               title: `${existingTask.title} → ${task.title}`,
               status: `${existingTask.status} → ${task.status}`,
-              priority: `${existingTask.priority} → ${task.priority}`
+              priority: `${existingTask.priority} → ${task.priority}`,
+              tag: `${existingTask.tag} → ${task.tag}`
             });
-            await updateTask(task.id, task.title, task.status, task.priority);
+            await updateTask(task.id, task.title, task.status, task.priority, task.tag);
           }
         }
       }
@@ -299,10 +383,16 @@ export function AuthProvider({ children }) {
       setTasks, 
       demoUsers: DEMO_USERS,
       loading,
+      chatHistory,
+      chatLoading,
+      refreshChatHistory,
+      appendChatMessage,
       getUserInitials,
-      getUserColor
+      getUserColor,
+      chatVersion,
+      bumpChatVersion,
     }}>
       {children}
     </AuthCtx.Provider>
   );
-} 
+}

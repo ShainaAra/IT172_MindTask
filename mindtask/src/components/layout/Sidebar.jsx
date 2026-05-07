@@ -18,7 +18,6 @@
     const NAV = [
       ["🏠", "Home"],
       ["🔍", "Search"],
-      ["📥", "Inbox"],
     ];
 
     return (

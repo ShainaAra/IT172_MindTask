@@ -163,6 +163,8 @@ Rules:
 User message: ${message}
 `;
 
+  let reply = "MindEase is connected, but Gemini is busy right now. Please try again later.";
+
   for (const model of models) {
     try {
       console.log("Trying model:", model);
@@ -172,29 +174,30 @@ User message: ${message}
         contents: prompt,
       });
 
-      const reply = response.text;
-
-      // Save chat only if userId is provided
-      if (userId) {
-        await prisma.chat.create({
-          data: {
-            message,
-            response: reply,
-            userId,
-          },
-        });
+      if (response?.text) {
+        reply = response.text;
+        break;
       }
-
-      return res.json({ reply });
     } catch (error) {
       console.log(`${model} failed:`, error.status || error.message);
     }
   }
 
-  return res.status(500).json({
-    reply:
-      "MindEase is connected, but Gemini is busy right now. Please try again later.",
-  });
+  if (userId) {
+    try {
+      await prisma.chat.create({
+        data: {
+          message,
+          response: reply,
+          userId,
+        },
+      });
+    } catch (error) {
+      console.error("Failed saving chat history:", error.message || error);
+    }
+  }
+
+  return res.json({ reply });
 });
 
 // GET CHAT HISTORY BY USER
@@ -202,10 +205,29 @@ app.get("/api/chats/:userId", async (req, res) => {
   try {
     const { userId } = req.params;
 
-    const chats = await prisma.chat.findMany({
+    let chats = await prisma.chat.findMany({
       where: { userId },
       orderBy: { createdAt: "asc" },
     });
+
+    if (chats.length === 0) {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+      });
+
+      const firstName = user?.name?.split(" ")[0] || "there";
+      const greeting = `Hey ${firstName}! 🌿 I'm MindEase, your wellness companion. How are you feeling today? Whether you're stressed, overwhelmed, or just need to talk — I'm here.`;
+
+      const initialChat = await prisma.chat.create({
+        data: {
+          message: "",
+          response: greeting,
+          userId,
+        },
+      });
+
+      chats = [initialChat];
+    }
 
     res.json(chats);
   } catch (error) {
@@ -262,13 +284,14 @@ app.get("/api/notes/:userId", async (req, res) => {
 // CREATE TASK
 app.post("/api/tasks", async (req, res) => {
   try {
-    const { title, status, priority, userId } = req.body;
+    const { title, status, priority, tag, userId } = req.body;
 
     const task = await prisma.task.create({
       data: {
         title,
         status,
         priority,
+        tag: tag || "Other",
         userId,
       },
     });
@@ -384,11 +407,14 @@ app.delete("/api/pages/:id", async (req, res) => {
 app.put("/api/tasks/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, status, priority } = req.body;
+    const { title, status, priority, tag } = req.body;
+
+    const updateData = { title, status, priority };
+    if (tag !== undefined) updateData.tag = tag;
 
     const task = await prisma.task.update({
       where: { id },
-      data: { title, status, priority },
+      data: updateData,
     });
 
     res.json(task);

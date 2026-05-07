@@ -170,11 +170,29 @@ export default function TaskBoard({ tasks, onUpdate }) {
         </div>
       )}
 
-      <div style={{ display:"flex", alignItems:"flex-end", gap:12, marginBottom:26 }}>
-        <span style={{ fontSize:42 }}>✅</span>
+      <div style={{ 
+        display: "flex", 
+        alignItems: "center", 
+        gap: "18px",           // comfortable spacing
+        marginBottom: "24px"   // more balanced bottom margin
+      }}>
         <div>
-          <h1 style={{ fontSize:"2rem", fontWeight:700, fontFamily:"'Lora',serif", color:t.text }}>My Tasks</h1>
-          <p style={{ fontSize:13, color:t.muted, marginTop:2 }}>{tasks.length} tasks · {tasks.filter(tk=>tk.status==="done").length} completed</p>
+          <h1 style={{ 
+            fontSize: "2rem", 
+            fontWeight: 700, 
+            fontFamily: "'Lora', serif", 
+            color: t.text,
+            lineHeight: 1.2,    // tighter heading height
+            margin: 0           // remove default h1 margin
+          }}>My Tasks</h1>
+          <p style={{ 
+            fontSize: 13, 
+            color: t.muted, 
+            marginTop: "6px",   // small space between title and stats
+            marginBottom: 0 
+          }}>
+            {tasks.length} tasks · {tasks.filter(tk => tk.status === "done").length} completed
+          </p>
         </div>
       </div>
 

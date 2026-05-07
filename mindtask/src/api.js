@@ -95,12 +95,12 @@ export async function deleteNote(id) {
 
 // ━━━━━ TASKS ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-export async function createTask(title, status, priority, userId) {
+export async function createTask(title, status, priority, userId, tag = "Other") {
   try {
     const res = await fetch(`${API_BASE}/tasks`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title, status, priority, userId }),
+      body: JSON.stringify({ title, status, priority, tag, userId }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.message || "Failed to create task");
@@ -122,12 +122,12 @@ export async function getTasks(userId) {
   }
 }
 
-export async function updateTask(id, title, status, priority) {
+export async function updateTask(id, title, status, priority, tag) {
   try {
     const res = await fetch(`${API_BASE}/tasks/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title, status, priority }),
+      body: JSON.stringify({ title, status, priority, tag }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.message || "Failed to update task");

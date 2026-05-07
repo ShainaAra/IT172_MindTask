@@ -9,7 +9,6 @@ import TaskBoard from "../components/tasks/TaskBoard";
 import ChatPanel from "../components/chat/ChatPanel";
 import HomeView from "../views/HomeView";
 import SearchView from "../views/SearchView";
-import InboxView from "../views/InboxView";
 import { DEFAULT_NOTES, generateNewNote } from "../data/defaults";
 
 export default function Dashboard() {
@@ -25,6 +24,7 @@ export default function Dashboard() {
   const [notesVersion, setNotesVersion] = useState(0);
   const [showTitleModal, setShowTitleModal] = useState(false);
   const [newNoteTitle, setNewNoteTitle] = useState("");
+  const [newlyCreatedNoteId, setNewlyCreatedNoteId] = useState(null); // Track newly created note
   const userMenuRef = useRef(null);
 
   useEffect(() => {
@@ -83,6 +83,15 @@ export default function Dashboard() {
     }
   }, [welcomeNote, activeId]);
 
+  // Keep chat and welcome page synchronized once the welcome note is available
+  useEffect(() => {
+    if (chatOpen && welcomeNote?.id) {
+      setActiveId(welcomeNote.id);
+      setActiveNav(null);
+      setShowNotesGrid(false);
+    }
+  }, [chatOpen, welcomeNote?.id]);
+
   const activeNote = allNotes.find((n) => n.id === activeId);
 
   const handleSetActiveNote = (id) => {
@@ -91,20 +100,24 @@ export default function Dashboard() {
       setShowNotesGrid(true);
       setActiveNav(null);
       setActiveId(null);
+      setNewlyCreatedNoteId(null); // Reset flag when navigating
     } else if (clickedNote?.type === "tasks" || clickedNote?.title === "My Tasks") {
       setActiveId(id);
       setActiveNav(null);
       setShowNotesGrid(false);
+      setNewlyCreatedNoteId(null); // Reset flag when navigating
     } else {
       setActiveId(id);
       setActiveNav(null);
       setShowNotesGrid(false);
+      setNewlyCreatedNoteId(null); // Reset flag when navigating
     }
   };
 
   const handleOpenNote = (note) => {
     setActiveId(note.id);
     setShowNotesGrid(false);
+    setNewlyCreatedNoteId(null); // Reset flag when opening existing note
   };
 
   const handleBackToNotesGrid = () => {
@@ -112,6 +125,7 @@ export default function Dashboard() {
     setActiveNav(null);
     setActiveId(myNotesNote?.id || null);
     setNotesVersion(prev => prev + 1);
+    setNewlyCreatedNoteId(null); // Reset flag when going back
   };
 
   const openNewNoteModal = () => {
@@ -128,6 +142,7 @@ export default function Dashboard() {
     
     setNotes((prevNotes) => [...prevNotes, newNote]);
     setActiveId(newNote.id);
+    setNewlyCreatedNoteId(newNote.id); // Track that this is a newly created note
     setShowNotesGrid(false);
     setNotesVersion(prev => prev + 1);
     setShowTitleModal(false);
@@ -146,6 +161,7 @@ export default function Dashboard() {
       setShowNotesGrid(false);
     }
     setNotesVersion(prev => prev + 1);
+    setNewlyCreatedNoteId(null); // Reset flag when deleting
   };
 
   const updateNote = (id, field, val) => {
@@ -227,6 +243,7 @@ export default function Dashboard() {
           onUpdate={updateNote}
           user={user} 
           onBack={handleBackToNotesGrid}
+          isNewlyCreated={newlyCreatedNoteId === activeNote.id} // Pass flag to PageEditor
         />
       );
     }
@@ -239,6 +256,7 @@ export default function Dashboard() {
           onUpdate={updateNote}
           user={user} 
           onBack={null}
+          isNewlyCreated={newlyCreatedNoteId === activeNote.id} // Pass flag to PageEditor
         />
       );
     }
@@ -262,7 +280,14 @@ export default function Dashboard() {
         setActivePage={handleSetActiveNote}
         onAdd={openNewNoteModal}
         onDelete={deleteNote}
-        onChat={() => setChatOpen(true)}
+        onChat={() => {
+          if (welcomeNote?.id) {
+            setActiveId(welcomeNote.id);
+            setActiveNav(null);
+            setShowNotesGrid(false);
+          }
+          setChatOpen(true);
+        }}
         open={sidebarOpen}
         activeNav={activeNav}
         setActiveNav={setActiveNav}
@@ -448,6 +473,7 @@ export default function Dashboard() {
               value={newNoteTitle}
               onChange={(e) => setNewNoteTitle(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && createNewNote()}
+              onClick={(e) => e.stopPropagation()}
               placeholder="Note title..."
               autoFocus
               style={{

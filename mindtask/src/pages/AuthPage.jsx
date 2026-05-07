@@ -1,40 +1,96 @@
 import { useState } from "react";
 import { useAuth } from "../context/useAuth";
 import { useTheme } from "../context/useTheme";
-import Ic from "../components/common/Ic";
+
+// Helper: basic email validation (same as in AuthContext)
+const isValidEmail = (email) => {
+  const emailRegex = /^[^\s@]+@([^\s@]+\.)+[^\s@]+$/;
+  return emailRegex.test(email.trim());
+};
 
 export default function AuthPage() {
-  const { login, register, err, setErr, demoUsers } = useAuth();
+  const { login, register, err: globalErr, setErr, demoUsers } = useAuth();
   const t = useTheme();
 
   const [mode, setMode] = useState("login");
-  const [showPw, setShowPw] = useState(false);
   const [f, setF] = useState({ name: "", email: "", password: "" });
   const [loading, setLoading] = useState(false);
+  
+  // Field‑specific errors
+  const [fieldErrors, setFieldErrors] = useState({
+    name: "",
+    email: "",
+    password: "",
+  });
+
+  const clearFieldErrors = () => {
+    setFieldErrors({ name: "", email: "", password: "" });
+    setErr(""); // clear global error as well
+  };
 
   const upd = (k, v) => {
     setF((p) => ({ ...p, [k]: v }));
+    // clear error for this field when user starts typing
+    setFieldErrors((prev) => ({ ...prev, [k]: "" }));
     setErr("");
   };
 
   const submit = async () => {
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 350));
+    clearFieldErrors();
 
-    if (mode === "login") login(f.email, f.password);
-    else {
-      if (!f.name.trim()) {
-        setErr("Please enter your name.");
-        setLoading(false);
-        return;
+    // 1. Frontend validations
+    if (mode === "register" && !f.name.trim()) {
+      setFieldErrors((prev) => ({ ...prev, name: "Please enter your name." }));
+      setLoading(false);
+      return;
+    }
+
+    if (!isValidEmail(f.email)) {
+      setFieldErrors((prev) => ({
+        ...prev,
+        email: "Please enter a valid email address (e.g., name@example.com)",
+      }));
+      setLoading(false);
+      return;
+    }
+
+    if (!f.password.trim()) {
+      setFieldErrors((prev) => ({ ...prev, password: "Password is required." }));
+      setLoading(false);
+      return;
+    }
+
+    // 2. Call API
+    let success = false;
+    if (mode === "login") {
+      success = await login(f.email, f.password);
+    } else {
+      success = await register(f.name, f.email, f.password);
+    }
+
+    // 3. Handle API errors (global error from context)
+    if (!success && globalErr) {
+      const errMsg = globalErr.toLowerCase();
+      if (errMsg.includes("email") && errMsg.includes("password")) {
+        setFieldErrors((prev) => ({
+          ...prev,
+          email: "Email is required or invalid",
+          password: "Password is required",
+        }));
+      } else if (errMsg.includes("email")) {
+        setFieldErrors((prev) => ({ ...prev, email: globalErr }));
+      } else if (errMsg.includes("password")) {
+        setFieldErrors((prev) => ({ ...prev, password: globalErr }));
+      } else {
+        // fallback: show generic error under the submit button
+        setErr(globalErr);
       }
-      register(f.name, f.email, f.password);
     }
 
     setLoading(false);
   };
 
-  // Handle Enter key press
   const handleKeyPress = (e) => {
     if (e.key === "Enter") {
       e.preventDefault();
@@ -44,9 +100,12 @@ export default function AuthPage() {
 
   const quick = (u) => {
     setMode("login");
+    setF({ name: "", email: u.email, password: u.password });
+    clearFieldErrors();
     setTimeout(() => login(u.email, u.password), 20);
   };
 
+  // Reusable styles
   const inp = {
     background: t.inputBg,
     border: `1px solid ${t.border}`,
@@ -66,6 +125,13 @@ export default function AuthPage() {
     fontWeight: 500,
     display: "block",
     marginBottom: 5,
+  };
+
+  const errorStyle = {
+    fontSize: 12,
+    color: "#f87171",
+    marginTop: 4,
+    marginLeft: 4,
   };
 
   return (
@@ -128,8 +194,8 @@ export default function AuthPage() {
                 key={m}
                 onClick={() => {
                   setMode(m);
-                  setErr("");
                   setF({ name: "", email: "", password: "" });
+                  clearFieldErrors();
                 }}
                 style={{
                   flex: 1,
@@ -137,6 +203,8 @@ export default function AuthPage() {
                   borderRadius: 7,
                   background: mode === m ? t.accent : "transparent",
                   color: mode === m ? "#fff" : t.muted,
+                  cursor: "pointer",
+                  border: "none",
                 }}
               >
                 {m === "login" ? "Log In" : "Create Account"}
@@ -144,9 +212,9 @@ export default function AuthPage() {
             ))}
           </div>
 
-          <div 
+          <div
             style={{ display: "flex", flexDirection: "column", gap: 14 }}
-            onKeyPress={handleKeyPress}  // ADD THIS - handles Enter key on the whole form
+            onKeyPress={handleKeyPress}
           >
             {mode === "register" && (
               <div>
@@ -154,9 +222,11 @@ export default function AuthPage() {
                 <input
                   value={f.name}
                   onChange={(e) => upd("name", e.target.value)}
-                  onKeyPress={handleKeyPress}  // ADD THIS
                   style={inp}
                 />
+                {fieldErrors.name && (
+                  <div style={errorStyle}>{fieldErrors.name}</div>
+                )}
               </div>
             )}
 
@@ -167,45 +237,33 @@ export default function AuthPage() {
                 type="email"
                 value={f.email}
                 onChange={(e) => upd("email", e.target.value)}
-                onKeyPress={handleKeyPress}  // ADD THIS
                 placeholder="you@example.com"
                 style={inp}
               />
+              {fieldErrors.email && (
+                <div style={errorStyle}>{fieldErrors.email}</div>
+              )}
             </div>
 
             {/* Password */}
             <div>
               <label style={lbl}>Password</label>
-              <div style={{ position: "relative", width: "100%" }}>
-                <input
-                  type={showPw ? "text" : "password"}
-                  value={f.password}
-                  onChange={(e) => upd("password", e.target.value)}
-                  onKeyPress={handleKeyPress}  // ADD THIS
-                  placeholder="••••••••"
-                  style={{ ...inp, paddingRight: 42 }}
-                />
-                <button
-                  onClick={() => setShowPw((v) => !v)}
-                  style={{
-                    position: "absolute",
-                    right: 12,
-                    top: "50%",
-                    transform: "translateY(-50%)",
-                    border: "none",
-                    background: "transparent",
-                    cursor: "pointer",
-                    color: t.muted,
-                  }}
-                >
-                  <Ic n={showPw ? "eyeOff" : "eye"} size={15} />
-                </button>
-              </div>
+              <input
+                type="password"
+                value={f.password}
+                onChange={(e) => upd("password", e.target.value)}
+                placeholder="••••••••"
+                style={inp}
+              />
+              {fieldErrors.password && (
+                <div style={errorStyle}>{fieldErrors.password}</div>
+              )}
             </div>
           </div>
 
-          {err && (
-            <div style={{ marginTop: 12, color: "#f87171" }}>{err}</div>
+          {/* Global error (if any) */}
+          {globalErr && !fieldErrors.email && !fieldErrors.password && !fieldErrors.name && (
+            <div style={{ marginTop: 12, color: "#f87171" }}>{globalErr}</div>
           )}
 
           {/* Main Button */}
@@ -219,6 +277,9 @@ export default function AuthPage() {
               borderRadius: 11,
               background: "linear-gradient(135deg,#5b8af0,#c084fc)",
               color: "#fff",
+              border: "none",
+              cursor: loading ? "not-allowed" : "pointer",
+              opacity: loading ? 0.7 : 1,
             }}
           >
             {loading
@@ -228,17 +289,16 @@ export default function AuthPage() {
               : "Create Account"}
           </button>
 
-          {/* Switch */}
+          {/* Switch mode link */}
           <div style={{ textAlign: "center", marginTop: 14, fontSize: 13 }}>
             {mode === "login" ? (
               <>
-                <span style={{ color: t.muted }}>
-                  Don’t have an account?{" "}
-                </span>
+                <span style={{ color: t.muted }}>Don’t have an account? </span>
                 <button
                   onClick={() => {
                     setMode("register");
-                    setErr("");
+                    setF({ name: "", email: "", password: "" });
+                    clearFieldErrors();
                   }}
                   style={{
                     background: "none",
@@ -253,13 +313,12 @@ export default function AuthPage() {
               </>
             ) : (
               <>
-                <span style={{ color: t.muted }}>
-                  Already have an account?{" "}
-                </span>
+                <span style={{ color: t.muted }}>Already have an account? </span>
                 <button
                   onClick={() => {
                     setMode("login");
-                    setErr("");
+                    setF({ name: "", email: "", password: "" });
+                    clearFieldErrors();
                   }}
                   style={{
                     background: "none",
@@ -275,10 +334,22 @@ export default function AuthPage() {
             )}
           </div>
 
-          {/* Demo */}
-          <div style={{ marginTop: 20 }}>
+          {/* Demo users */}
+          <div style={{ marginTop: 20, display: "flex", gap: 8, justifyContent: "center" }}>
             {demoUsers.map((u) => (
-              <button key={u.id} onClick={() => quick(u)}>
+              <button
+                key={u.id}
+                onClick={() => quick(u)}
+                style={{
+                  background: t.inputBg,
+                  border: `1px solid ${t.border}`,
+                  borderRadius: 30,
+                  width: 40,
+                  height: 40,
+                  fontSize: 20,
+                  cursor: "pointer",
+                }}
+              >
                 {u.avatar}
               </button>
             ))}

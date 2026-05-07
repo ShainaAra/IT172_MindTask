@@ -37,6 +37,7 @@ model Task {
   title     String
   status    String   // todo | in-progress | done
   priority  String   // low | medium | high
+  tag       String   @default("Other") // Dev | Design | AI | QA | Planning | DevOps | Research | Other
   userId    String   @db.ObjectId
   createdAt DateTime @default(now())
 

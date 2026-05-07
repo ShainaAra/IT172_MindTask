@@ -119,12 +119,11 @@ export default function NotesGrid({ notes, onOpen, onAdd, onDelete, t, user }) {
       )}
 
       {/* Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 32 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <span style={{ fontSize: 44 }}>📝</span>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 15 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 1 }}>
           <div>
             <h1 style={{ fontSize: "2rem", fontWeight: 700, fontFamily: "'Lora',serif", color: t.text }}>My Notes</h1>
-            <p style={{ fontSize: 13, color: t.muted, marginTop: 3 }}>{notes.length} notes</p>
+            <p style={{ fontSize: 13, color: t.muted, marginTop: 5 }}>{notes.length} notes</p>
           </div>
         </div>
         
