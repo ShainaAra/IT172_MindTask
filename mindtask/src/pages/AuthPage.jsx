@@ -2,32 +2,69 @@ import { useState } from "react";
 import { useAuth } from "../context/useAuth";
 import { useTheme } from "../context/useTheme";
 
-// Helper: basic email validation (same as in AuthContext)
+/**
+ * Helper: basic email validation (same as in AuthContext)
+ * Validates email format using regex pattern
+ * 
+ * @param {string} email - Email address to validate
+ * @returns {boolean} True if email format is valid
+ */
 const isValidEmail = (email) => {
   const emailRegex = /^[^\s@]+@([^\s@]+\.)+[^\s@]+$/;
   return emailRegex.test(email.trim());
 };
 
+/**
+ * Component: AuthPage
+ * Description: Authentication page component handling both login and registration.
+ * Features:
+ * - Toggle between login and register modes
+ * - Form validation with field-specific error messages
+ * - Email format validation before API calls
+ * - Demo users for quick testing
+ * - Enter key submission support
+ * - Loading state during API requests
+ * 
+ * @returns {JSX.Element} Authentication page with login/register forms
+ */
 export default function AuthPage() {
+  // Destructure authentication functions and state from context
   const { login, register, err: globalErr, setErr, demoUsers } = useAuth();
-  const t = useTheme();
+  const t = useTheme(); // Theme context for styling
 
+  // State for controlling login vs register mode
   const [mode, setMode] = useState("login");
+  
+  // State for form fields (name, email, password)
   const [f, setF] = useState({ name: "", email: "", password: "" });
+  
+  // State for loading indicator during API calls
   const [loading, setLoading] = useState(false);
   
-  // Field‑specific errors
+  // State for field-specific error messages
   const [fieldErrors, setFieldErrors] = useState({
     name: "",
     email: "",
     password: "",
   });
 
+  /**
+   * Function: clearFieldErrors
+   * Description: Resets all field-specific errors and global error
+   */
   const clearFieldErrors = () => {
     setFieldErrors({ name: "", email: "", password: "" });
     setErr(""); // clear global error as well
   };
 
+  /**
+   * Function: upd
+   * Description: Updates form field value and clears error for that specific field
+   * Provides real-time error clearing as user types
+   * 
+   * @param {string} k - Field key ("name", "email", or "password")
+   * @param {string} v - New value for the field
+   */
   const upd = (k, v) => {
     setF((p) => ({ ...p, [k]: v }));
     // clear error for this field when user starts typing
@@ -35,6 +72,12 @@ export default function AuthPage() {
     setErr("");
   };
 
+  /**
+   * Function: submit
+   * Description: Handles form submission for both login and registration
+   * Performs frontend validation before calling API
+   * Maps backend errors to appropriate form fields
+   */
   const submit = async () => {
     setLoading(true);
     clearFieldErrors();
@@ -61,7 +104,7 @@ export default function AuthPage() {
       return;
     }
 
-    // 2. Call API
+    // 2. Call API based on current mode
     let success = false;
     if (mode === "login") {
       success = await login(f.email, f.password);
@@ -70,6 +113,7 @@ export default function AuthPage() {
     }
 
     // 3. Handle API errors (global error from context)
+    // Parse error message and map to appropriate form fields
     if (!success && globalErr) {
       const errMsg = globalErr.toLowerCase();
       if (errMsg.includes("email") && errMsg.includes("password")) {
@@ -91,6 +135,12 @@ export default function AuthPage() {
     setLoading(false);
   };
 
+  /**
+   * Function: handleKeyPress
+   * Description: Handles Enter key press for form submission
+   * 
+   * @param {Object} e - Keyboard event object
+   */
   const handleKeyPress = (e) => {
     if (e.key === "Enter") {
       e.preventDefault();
@@ -98,14 +148,20 @@ export default function AuthPage() {
     }
   };
 
+  /**
+   * Function: quick
+   * Description: Auto-fills and logs in with demo user credentials
+   * 
+   * @param {Object} u - Demo user object containing email and password
+   */
   const quick = (u) => {
     setMode("login");
     setF({ name: "", email: u.email, password: u.password });
     clearFieldErrors();
-    setTimeout(() => login(u.email, u.password), 20);
+    setTimeout(() => login(u.email, u.password), 20); // Slight delay to ensure state updates
   };
 
-  // Reusable styles
+  // Reusable styles for form elements
   const inp = {
     background: t.inputBg,
     border: `1px solid ${t.border}`,
@@ -147,7 +203,7 @@ export default function AuthPage() {
       }}
     >
       <div style={{ width: "100%", maxWidth: 420 }}>
-        {/* Logo */}
+        {/* Logo and Brand Section */}
         <div style={{ textAlign: "center", marginBottom: 30 }}>
           <div
             style={{
@@ -171,6 +227,7 @@ export default function AuthPage() {
           </p>
         </div>
 
+        {/* Authentication Card */}
         <div
           style={{
             background: t.surface,
@@ -179,7 +236,7 @@ export default function AuthPage() {
             padding: 28,
           }}
         >
-          {/* Tabs */}
+          {/* Mode Tabs - Login / Register toggle */}
           <div
             style={{
               display: "flex",
@@ -212,10 +269,12 @@ export default function AuthPage() {
             ))}
           </div>
 
+          {/* Form Fields */}
           <div
             style={{ display: "flex", flexDirection: "column", gap: 14 }}
             onKeyPress={handleKeyPress}
           >
+            {/* Name field - only shown in register mode */}
             {mode === "register" && (
               <div>
                 <label style={lbl}>Full Name</label>
@@ -230,7 +289,7 @@ export default function AuthPage() {
               </div>
             )}
 
-            {/* Email */}
+            {/* Email field - common to both modes */}
             <div>
               <label style={lbl}>Email</label>
               <input
@@ -245,7 +304,7 @@ export default function AuthPage() {
               )}
             </div>
 
-            {/* Password */}
+            {/* Password field - common to both modes */}
             <div>
               <label style={lbl}>Password</label>
               <input
@@ -261,12 +320,12 @@ export default function AuthPage() {
             </div>
           </div>
 
-          {/* Global error (if any) */}
+          {/* Global error display - only shown if no field-specific errors exist */}
           {globalErr && !fieldErrors.email && !fieldErrors.password && !fieldErrors.name && (
             <div style={{ marginTop: 12, color: "#f87171" }}>{globalErr}</div>
           )}
 
-          {/* Main Button */}
+          {/* Submit Button */}
           <button
             onClick={submit}
             disabled={loading}
@@ -289,11 +348,11 @@ export default function AuthPage() {
               : "Create Account"}
           </button>
 
-          {/* Switch mode link */}
+          {/* Switch Mode Link - Toggle between login and register */}
           <div style={{ textAlign: "center", marginTop: 14, fontSize: 13 }}>
             {mode === "login" ? (
               <>
-                <span style={{ color: t.muted }}>Don’t have an account? </span>
+                <span style={{ color: t.muted }}>Don't have an account? </span>
                 <button
                   onClick={() => {
                     setMode("register");
@@ -334,7 +393,7 @@ export default function AuthPage() {
             )}
           </div>
 
-          {/* Demo users */}
+          {/* Demo Users Section - Quick login buttons for testing */}
           <div style={{ marginTop: 20, display: "flex", gap: 8, justifyContent: "center" }}>
             {demoUsers.map((u) => (
               <button

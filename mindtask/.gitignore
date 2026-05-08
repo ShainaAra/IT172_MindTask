@@ -25,3 +25,6 @@ dist-ssr
 *.sw?
 
 /src/generated/prisma
+
+
+# DATABASE_URL="mongodb+srv://shainaqueturas_db_user:mindtask123@cluster0.glkzdcq.mongodb.net/mindtask?retryWrites=true&w=majority&appName=Cluster0"

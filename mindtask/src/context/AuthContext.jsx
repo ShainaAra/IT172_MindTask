@@ -3,24 +3,76 @@ import { DEMO_USERS, makeUserData, DEFAULT_NOTES, DEFAULT_TASKS } from "../data/
 import { AuthCtx } from "./AuthCtx";
 import { registerUser as registerUserAPI, loginUser as loginUserAPI, getNotes, getTasks, createNote, updateNote, deleteNote, createTask, updateTask, deleteTask, getChatHistory } from "../api";
 
-// Helper: Basic email validation
+/**
+ * Helper: Basic email validation using regex
+ * Validates email format to ensure it contains @ and valid domain structure
+ * 
+ * @param {string} email - Email address to validate
+ * @returns {boolean} True if email format is valid, false otherwise
+ */
 const isValidEmail = (email) => {
   // Simple but robust regex for most common email patterns
   const emailRegex = /^[^\s@]+@([^\s@]+\.)+[^\s@]+$/;
   return emailRegex.test(email.trim());
 };
 
+/**
+ * Component: AuthProvider
+ * Description: Authentication and state management provider for the entire application.
+ * Manages user authentication (login/register/logout), persistent storage of notes and tasks,
+ * chat history for MindEase wellness companion, and synchronization with backend API.
+ * 
+ * Features:
+ * - User registration and login with backend API
+ * - Email validation before API calls
+ * - JWT token storage in localStorage
+ * - Notes and tasks CRUD operations with backend sync
+ * - Chat history management for wellness AI
+ * - User avatar generation (initials and color)
+ * - Automatic creation of default notes for new users
+ * 
+ * @param {Object} props - Component properties
+ * @param {React.ReactNode} props.children - Child components that will have access to auth context
+ * 
+ * @returns {JSX.Element} Auth context provider wrapping children components
+ */
 export function AuthProvider({ children }) {
+  // State for current authenticated user object
   const [user, setUser] = useState(null);
+  
+  // State for storing error messages from auth operations
   const [err, setErr] = useState("");
+  
+  // State for storing user data (notes, tasks) keyed by user ID
   const [store, setStore] = useState({});
+  
+  // State for tracking loading status of auth operations
   const [loading, setLoading] = useState(false);
+  
+  // State for storing chat message history for the current user
   const [chatHistory, setChatHistory] = useState([]);
+  
+  // State for tracking loading status of chat history
   const [chatLoading, setChatLoading] = useState(false);
+  
+  // State for triggering chat history refresh when version changes
   const [chatVersion, setChatVersion] = useState(0);
 
+  /**
+   * Function: bumpChatVersion
+   * Description: Increments chat version to trigger re-fetch of chat history
+   * Used when new messages are added externally
+   */
   const bumpChatVersion = () => setChatVersion((v) => v + 1);
 
+  /**
+   * Function: formatChatHistory
+   * Description: Transforms raw chat history from API into format expected by UI
+   * Flattens message-response pairs into individual message objects
+   * 
+   * @param {Array} history - Raw chat history from API containing message/response pairs
+   * @returns {Array} Formatted array of message objects with role and text properties
+   */
   const formatChatHistory = (history = []) =>
     history.flatMap((chat) => {
       const messageText = chat.message?.trim();
@@ -36,6 +88,13 @@ export function AuthProvider({ children }) {
       ];
     });
 
+  /**
+   * Function: createWelcomeChat
+   * Description: Creates the initial welcome message for a new chat session
+   * Personalizes the message with the user's first name
+   * 
+   * @returns {Array} Array containing the welcome message object
+   */
   const createWelcomeChat = () => [
     {
       role: "assistant",
@@ -43,6 +102,14 @@ export function AuthProvider({ children }) {
     },
   ];
 
+  /**
+   * Function: loadChatHistory
+   * Description: Loads chat history from backend API for a specific user
+   * Falls back to welcome message if no history exists or on error
+   * 
+   * @param {string} userId - ID of the user whose chat history to load
+   * @returns {Promise<Array>} Resolves to formatted chat history array
+   */
   const loadChatHistory = async (userId) => {
     if (!userId) return createWelcomeChat();
     setChatLoading(true);
@@ -62,16 +129,36 @@ export function AuthProvider({ children }) {
     }
   };
 
+  /**
+   * Function: refreshChatHistory
+   * Description: Manually refreshes chat history for the current user
+   * Useful after adding new messages to ensure UI is up to date
+   * 
+   * @returns {Promise<Array>} Resolves to refreshed chat history
+   */
   const refreshChatHistory = async () => {
     if (!user?.id) return [];
     return await loadChatHistory(user.id);
   };
 
+  /**
+   * Function: appendChatMessage
+   * Description: Appends a new message to the local chat history state
+   * Used for optimistic UI updates before backend sync
+   * 
+   * @param {Object} message - Message object with role and text properties
+   */
   const appendChatMessage = (message) => {
     setChatHistory((prev) => [...prev, message]);
   };
 
-  // Get user initials from name (e.g., "Jenella Yvonne" -> "JY")
+  /**
+   * Function: getUserInitials
+   * Description: Generates user initials from their full name
+   * Example: "Jenella Yvonne" → "JY", "John" → "JO"
+   * 
+   * @returns {string} Uppercase initials (2 characters)
+   */
   const getUserInitials = () => {
     if (!user || !user.name) return "?";
     
@@ -87,7 +174,13 @@ export function AuthProvider({ children }) {
     return (firstInitial + lastInitial).toUpperCase();
   };
 
-  // Generate consistent color based on user name
+  /**
+   * Function: getUserColor
+   * Description: Generates a consistent avatar color based on user's name length
+   * Provides deterministic color selection for user avatars
+   * 
+   * @returns {string} Hex color code from predefined palette
+   */
   const getUserColor = () => {
     if (!user || !user.name) return "#5b8af0";
     
@@ -96,6 +189,10 @@ export function AuthProvider({ children }) {
     return colors[index];
   };
 
+  /**
+   * Effect: Load chat history when user ID changes
+   * Clears chat history when user logs out, loads new history when user logs in
+   */
   useEffect(() => {
     if (!user?.id) {
       setChatHistory([]);
@@ -104,7 +201,13 @@ export function AuthProvider({ children }) {
     loadChatHistory(user.id);
   }, [user?.id]);
 
-  // Fetch user data from backend
+  /**
+   * Function: fetchUserData
+   * Description: Fetches notes and tasks for a user from the backend API
+   * Automatically creates default notes for new users who don't have them
+   * 
+   * @param {string} userId - ID of the user whose data to fetch
+   */
   const fetchUserData = async (userId) => {
     try {
       const [notes, tasks] = await Promise.all([
@@ -114,6 +217,7 @@ export function AuthProvider({ children }) {
 
       let safeNotes = notes || [];
 
+      // Check for missing default notes and create them if needed
       const missingDefaults = DEFAULT_NOTES.filter((defaultNote) =>
         !safeNotes.some(
           (note) =>
@@ -140,6 +244,7 @@ export function AuthProvider({ children }) {
 
       const safeTasks = tasks && tasks.length > 0 ? tasks : [];
 
+      // Ensure each note has an icon (use default if missing)
       safeNotes = safeNotes.map((note) => {
         const defaultNote = DEFAULT_NOTES.find(
           (defaultNote) =>
@@ -162,6 +267,7 @@ export function AuthProvider({ children }) {
     } catch (error) {
       console.error("Error fetching user data:", error);
 
+      // Fallback to local demo data on error
       setStore((prev) => ({
         ...prev,
         [userId]: makeUserData(userId),
@@ -169,7 +275,17 @@ export function AuthProvider({ children }) {
     }
   };
 
-  // Register with backend + frontend email validation
+  /**
+   * Function: register
+   * Description: Registers a new user with the backend API
+   * Includes email validation before API call
+   * Creates default notes for the new user
+   * 
+   * @param {string} name - User's full name
+   * @param {string} email - User's email address (validated)
+   * @param {string} pw - User's password
+   * @returns {Promise<boolean>} True if registration successful, false otherwise
+   */
   const register = async (name, email, pw) => {
     // Validate email before any API call
     if (!isValidEmail(email)) {
@@ -183,6 +299,7 @@ export function AuthProvider({ children }) {
       const response = await registerUserAPI(name, email, pw);
       const userData = response.user;
       
+      // Store JWT token in localStorage for persistent auth
       if (response.token) {
         localStorage.setItem("mindtask_token", response.token);
       }
@@ -190,6 +307,7 @@ export function AuthProvider({ children }) {
       
       setUser(userData);
 
+      // Create default notes for the new user
       await Promise.all(
         DEFAULT_NOTES.map((defaultNote) =>
           createNote(
@@ -213,7 +331,15 @@ export function AuthProvider({ children }) {
     }
   };
 
-  // Login with backend + frontend email validation
+  /**
+   * Function: login
+   * Description: Authenticates an existing user with the backend API
+   * Includes email validation before API call
+   * 
+   * @param {string} email - User's email address (validated)
+   * @param {string} pw - User's password
+   * @returns {Promise<boolean>} True if login successful, false otherwise
+   */
   const login = async (email, pw) => {
     // Validate email before any API call
     if (!isValidEmail(email)) {
@@ -227,6 +353,7 @@ export function AuthProvider({ children }) {
       const response = await loginUserAPI(email, pw);
       const userData = response.user;
       
+      // Store JWT token in localStorage for persistent auth
       if (response.token) {
         localStorage.setItem("mindtask_token", response.token);
       }
@@ -244,26 +371,44 @@ export function AuthProvider({ children }) {
     }
   };
 
+  /**
+   * Function: logout
+   * Description: Logs out the current user and clears stored authentication data
+   */
   const logout = () => {
     setUser(null);
     localStorage.removeItem("mindtask_user");
     localStorage.removeItem("mindtask_token");
   };
 
+  /**
+   * Function: getData
+   * Description: Retrieves notes and tasks for the current authenticated user
+   * 
+   * @returns {Object|null} User data object containing notes and tasks, null if no user logged in
+   */
   const getData = () => user ? store[user.id] : null;
 
-  // Update notes in backend
+  /**
+   * Function: setNotes
+   * Description: Updates notes in local state and syncs changes with backend API
+   * Handles create, update, and delete operations intelligently
+   * 
+   * @param {Function|Array} fn - Either an updater function or new notes array
+   */
   const setNotes = async (fn) => {
     if (!user) return;
     
     const currentNotes = store[user.id]?.notes || [];
     const newNotes = typeof fn === "function" ? fn(currentNotes) : fn;
     
+    // Optimistic update - update UI immediately
     setStore(p => ({
       ...p,
       [user.id]: { ...p[user.id], notes: newNotes }
     }));
 
+    // Sync with backend
     try {
       // Loop through all new notes to create or update
       for (const note of newNotes) {
@@ -304,14 +449,21 @@ export function AuthProvider({ children }) {
     }
   };
 
-  // Update tasks in backend
+  /**
+   * Function: setTasks
+   * Description: Updates tasks in local state and syncs changes with backend API
+   * Handles create, update, and delete operations intelligently
+   * Replaces temporary client-side IDs with real MongoDB IDs after creation
+   * 
+   * @param {Function|Array} fn - Either an updater function or new tasks array
+   */
   const setTasks = async (fn) => {
     if (!user) return;
     
     const currentTasks = store[user.id]?.tasks || [];
     const newTasks = typeof fn === "function" ? fn(currentTasks) : fn;
     
-    // Update local store first for instant UI update
+    // Optimistic update - update UI immediately
     setStore(p => ({
       ...p,
       [user.id]: { ...p[user.id], tasks: newTasks }
@@ -330,7 +482,7 @@ export function AuthProvider({ children }) {
           // New task - create in backend
           console.log("Creating new task:", task.title);
           const createdTask = await createTask(task.title, task.status, task.priority, user.id, task.tag);
-          // Replace temp ID with real MongoDB ID
+          // Replace temp ID with real MongoDB ID from backend
           updatedTasks[i] = createdTask;
         } else {
           // Existing task - check if anything changed
@@ -370,27 +522,28 @@ export function AuthProvider({ children }) {
     }
   };
 
+  // Provide authentication context to all child components
   return (
     <AuthCtx.Provider value={{ 
-      user, 
-      login, 
-      register, 
-      logout, 
-      err, 
-      setErr, 
-      getData, 
-      setNotes, 
-      setTasks, 
-      demoUsers: DEMO_USERS,
-      loading,
-      chatHistory,
-      chatLoading,
-      refreshChatHistory,
-      appendChatMessage,
-      getUserInitials,
-      getUserColor,
-      chatVersion,
-      bumpChatVersion,
+      user,           // Current authenticated user object
+      login,          // Login function
+      register,       // Registration function
+      logout,         // Logout function
+      err,            // Error message state
+      setErr,         // Set error message
+      getData,        // Get user's notes and tasks
+      setNotes,       // Update notes with backend sync
+      setTasks,       // Update tasks with backend sync
+      demoUsers: DEMO_USERS,  // Demo users for testing
+      loading,        // Loading state for auth operations
+      chatHistory,    // Chat message history
+      chatLoading,    // Chat loading state
+      refreshChatHistory, // Manual chat refresh function
+      appendChatMessage,  // Add message to chat
+      getUserInitials,    // Generate user initials for avatar
+      getUserColor,       // Generate user color for avatar
+      chatVersion,        // Chat version counter for refresh triggers
+      bumpChatVersion,    // Increment chat version
     }}>
       {children}
     </AuthCtx.Provider>

@@ -1,3 +1,19 @@
+/**
+ * Component: HomeView
+ * Description: The home/dashboard overview page shown when user clicks "Home" in navigation.
+ * Displays a personalized greeting, task statistics (todo/in-progress/done counts),
+ * and a list of main pages (Welcome, My Notes, My Tasks) for quick navigation.
+ * 
+ * @param {Object} props
+ * @param {Object} props.user - Current authenticated user object
+ * @param {Array} props.notes - Array of all user notes (filtered to show only main 3 types)
+ * @param {Array} props.tasks - Array of all user tasks for calculating statistics
+ * @param {Function} props.setActiveId - Function to navigate to a specific note/page
+ * @param {Function} props.setActiveNav - Function to clear active navigation state
+ * @param {Object} props.t - Theme object from useTheme() for styling
+ * 
+ * @returns {JSX.Element} Home view with greeting, stats cards, and recent pages list
+ */
 export default function HomeView({
   user,
   notes = [],
@@ -6,19 +22,22 @@ export default function HomeView({
   setActiveNav,
   t,
 }) {
+  // Calculate task statistics by status
   const done = tasks.filter((tk) => tk.status === "done").length;
   const inProgress = tasks.filter((tk) => tk.status === "in-progress").length;
   const todo = tasks.filter((tk) => tk.status === "todo").length;
 
+  // Extract user's first name for personalized greeting
   const firstName = user?.name?.split(" ")[0] || "User";
 
+  // Configuration for the three statistics cards
   const stats = [
     { label: "To Do", count: todo, color: "#6b7280", emoji: "📋" },
     { label: "In Progress", count: inProgress, color: "#fbbf24", emoji: "⚡" },
     { label: "Completed", count: done, color: "#4ade80", emoji: "✅" },
   ];
 
-  // Filter to show only the three main notes (welcome, notes-grid, tasks)
+  // Filter to show only the three main system notes (welcome, notes-grid, tasks)
   const mainNotes = notes.filter(n => 
     n.type === "welcome" || n.type === "notes-grid" || n.type === "tasks"
   );
@@ -32,7 +51,7 @@ export default function HomeView({
         width: "100%",
       }}
     >
-      {/* Greeting */}
+      {/* Greeting Section - Personalized welcome message */}
       <div style={{ textAlign: "center", marginBottom: 46 }}>
         <h1
           style={{
@@ -57,7 +76,7 @@ export default function HomeView({
         </p>
       </div>
 
-      {/* Stats Cards */}
+      {/* Stats Cards - Displays To Do, In Progress, Completed counts */}
       <div
         style={{
           display: "grid",
@@ -87,7 +106,6 @@ export default function HomeView({
             }}
           >
             <div style={{ fontSize: 26, marginBottom: 14 }}>{s.emoji}</div>
-
             <div
               style={{
                 fontSize: "2rem",
@@ -98,7 +116,6 @@ export default function HomeView({
             >
               {s.count}
             </div>
-
             <div
               style={{
                 fontSize: 13,
@@ -112,7 +129,7 @@ export default function HomeView({
         ))}
       </div>
 
-      {/* Recent Notes / Pages */}
+      {/* Recent Pages Section - Quick navigation to main notes */}
       <div>
         <div
           style={{
@@ -157,7 +174,6 @@ export default function HomeView({
               }}
             >
               <span style={{ fontSize: 20 }}>{note.icon || "📄"}</span>
-
               <span
                 style={{
                   fontSize: 14.5,
@@ -167,7 +183,6 @@ export default function HomeView({
               >
                 {note.title}
               </span>
-
               <span
                 style={{
                   marginLeft: "auto",
@@ -183,6 +198,7 @@ export default function HomeView({
             </div>
           ))}
 
+          {/* Empty state when no recent pages exist */}
           {mainNotes.length === 0 && (
             <div
               style={{

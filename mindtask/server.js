@@ -1,3 +1,15 @@
+/**
+ * Backend Server (server.js)
+ * Description: Express.js backend server for MindTask application.
+ * Provides RESTful API endpoints for authentication, notes, tasks, pages, and AI chat.
+ * Uses:
+ * - MongoDB with Prisma ORM for database operations
+ * - JWT for authentication
+ * - bcrypt for password hashing
+ * - Google Gemini AI for wellness chat responses
+ * - CORS for frontend communication
+ */
+
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
@@ -7,29 +19,40 @@ import jwt from "jsonwebtoken";
 import { PrismaClient } from "@prisma/client";
 import { GoogleGenAI } from "@google/genai";
 
+// Load environment variables from .env file
 dotenv.config();
 
+// Initialize Express app
 const app = express();
-app.use(cors());
-app.use(express.json());
 
+// Middleware
+app.use(cors());              // Enable CORS for frontend requests
+app.use(express.json());      // Parse JSON request bodies
+
+// Initialize Prisma Client for database operations
 const prisma = new PrismaClient();
 
+// Initialize Google Gemini AI with API key from environment
 const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY,
 });
 
+// Gemini models to try in order (fallback if primary fails)
 const models = [
   "gemini-2.5-flash-lite",
   "gemini-2.5-flash",
   "gemini-2.5-pro",
 ];
 
-// TEST DATABASE
+// ==================== TEST ENDPOINTS ====================
+
+/**
+ * GET /api/test-db
+ * Description: Test database connection
+ */
 app.get("/api/test-db", async (req, res) => {
   try {
     await prisma.$connect();
-
     res.json({
       message: "MongoDB Prisma database connected successfully",
     });
@@ -41,7 +64,10 @@ app.get("/api/test-db", async (req, res) => {
   }
 });
 
-// ✅ ADD THIS HERE 👇
+/**
+ * GET /api/users
+ * Description: Fetch all users (for development/debugging)
+ */
 app.get("/api/users", async (req, res) => {
   try {
     const users = await prisma.user.findMany();
@@ -54,17 +80,25 @@ app.get("/api/users", async (req, res) => {
   }
 });
 
-// SIGN UP
+// ==================== AUTHENTICATION ENDPOINTS ====================
+
+/**
+ * POST /api/auth/register
+ * Description: Register a new user account
+ * Body: { email, password, name }
+ */
 app.post("/api/auth/register", async (req, res) => {
   try {
     const { email, password, name } = req.body;
 
+    // Validate required fields
     if (!email || !password) {
       return res.status(400).json({
         message: "Email and password are required",
       });
     }
 
+    // Check if user already exists
     const existingUser = await prisma.user.findUnique({
       where: { email },
     });
@@ -75,8 +109,10 @@ app.post("/api/auth/register", async (req, res) => {
       });
     }
 
+    // Hash password with bcrypt (10 rounds)
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    // Create user in database
     const user = await prisma.user.create({
       data: {
         email,
@@ -97,11 +133,16 @@ app.post("/api/auth/register", async (req, res) => {
   }
 });
 
-// LOGIN
+/**
+ * POST /api/auth/login
+ * Description: Authenticate user and return JWT token
+ * Body: { email, password }
+ */
 app.post("/api/auth/login", async (req, res) => {
   try {
     const { email, password } = req.body;
 
+    // Find user by email
     const user = await prisma.user.findUnique({
       where: { email },
     });
@@ -112,6 +153,7 @@ app.post("/api/auth/login", async (req, res) => {
       });
     }
 
+    // Verify password
     const isPasswordCorrect = await bcrypt.compare(password, user.password);
 
     if (!isPasswordCorrect) {
@@ -120,6 +162,7 @@ app.post("/api/auth/login", async (req, res) => {
       });
     }
 
+    // Generate JWT token (expires in 7 days)
     const token = jwt.sign(
       {
         userId: user.id,
@@ -142,7 +185,14 @@ app.post("/api/auth/login", async (req, res) => {
   }
 });
 
-// GEMINI CHAT — same logic, with optional database saving
+// ==================== CHAT / AI ENDPOINTS ====================
+
+/**
+ * POST /api/chat
+ * Description: Send message to Gemini AI and get wellness response
+ * Body: { message, userId }
+ * Saves chat history to database if userId provided
+ */
 app.post("/api/chat", async (req, res) => {
   const { message, userId } = req.body;
 
@@ -150,6 +200,7 @@ app.post("/api/chat", async (req, res) => {
     return res.status(400).json({ reply: "Please enter a message." });
   }
 
+  // Construct prompt with MindEase persona and safety rules
   const prompt = `
 You are MindEase, a supportive mental wellness assistant inside MindTask.
 
@@ -165,6 +216,7 @@ User message: ${message}
 
   let reply = "MindEase is connected, but Gemini is busy right now. Please try again later.";
 
+  // Try multiple Gemini models (fallback mechanism)
   for (const model of models) {
     try {
       console.log("Trying model:", model);
@@ -176,13 +228,14 @@ User message: ${message}
 
       if (response?.text) {
         reply = response.text;
-        break;
+        break;  // Success, exit loop
       }
     } catch (error) {
       console.log(`${model} failed:`, error.status || error.message);
     }
   }
 
+  // Save chat to database if user is authenticated
   if (userId) {
     try {
       await prisma.chat.create({
@@ -200,16 +253,22 @@ User message: ${message}
   return res.json({ reply });
 });
 
-// GET CHAT HISTORY BY USER
+/**
+ * GET /api/chats/:userId
+ * Description: Fetch all chat history for a specific user
+ * Creates initial greeting message if no chat history exists
+ */
 app.get("/api/chats/:userId", async (req, res) => {
   try {
     const { userId } = req.params;
 
+    // Get all chats for user, ordered chronologically
     let chats = await prisma.chat.findMany({
       where: { userId },
       orderBy: { createdAt: "asc" },
     });
 
+    // If no chat history, create initial greeting
     if (chats.length === 0) {
       const user = await prisma.user.findUnique({
         where: { id: userId },
@@ -238,7 +297,13 @@ app.get("/api/chats/:userId", async (req, res) => {
   }
 });
 
-// CREATE NOTE
+// ==================== NOTES ENDPOINTS ====================
+
+/**
+ * POST /api/notes
+ * Description: Create a new note
+ * Body: { title, content, type, icon, userId }
+ */
 app.post("/api/notes", async (req, res) => {
   try {
     const { title, content, type, icon, userId } = req.body;
@@ -262,7 +327,10 @@ app.post("/api/notes", async (req, res) => {
   }
 });
 
-// GET NOTES BY USER
+/**
+ * GET /api/notes/:userId
+ * Description: Get all notes for a specific user (ordered newest first)
+ */
 app.get("/api/notes/:userId", async (req, res) => {
   try {
     const { userId } = req.params;
@@ -281,7 +349,61 @@ app.get("/api/notes/:userId", async (req, res) => {
   }
 });
 
-// CREATE TASK
+/**
+ * PUT /api/notes/:id
+ * Description: Update a specific note by ID
+ * Body: { title, content, type, icon }
+ */
+app.put("/api/notes/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, content, type, icon } = req.body;
+
+    const updateData = { title, content, type };
+    if (icon !== undefined) updateData.icon = icon;
+
+    const note = await prisma.note.update({
+      where: { id },
+      data: updateData,
+    });
+
+    res.json(note);
+  } catch (error) {
+    res.status(500).json({
+      message: "Failed to update note",
+      error: error.message,
+    });
+  }
+});
+
+/**
+ * DELETE /api/notes/:id
+ * Description: Delete a specific note by ID
+ */
+app.delete("/api/notes/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    await prisma.note.delete({
+      where: { id },
+    });
+
+    res.json({ message: "Note deleted successfully" });
+  } catch (error) {
+    res.status(500).json({
+      message: "Failed to delete note",
+      error: error.message,
+    });
+  }
+});
+
+// ==================== TASKS ENDPOINTS ====================
+
+/**
+ * POST /api/tasks
+ * Description: Create a new task
+ * Body: { title, status, priority, tag, userId }
+ */
 app.post("/api/tasks", async (req, res) => {
   try {
     const { title, status, priority, tag, userId } = req.body;
@@ -305,7 +427,10 @@ app.post("/api/tasks", async (req, res) => {
   }
 });
 
-// GET TASKS BY USER
+/**
+ * GET /api/tasks/:userId
+ * Description: Get all tasks for a specific user (ordered newest first)
+ */
 app.get("/api/tasks/:userId", async (req, res) => {
   try {
     const { userId } = req.params;
@@ -324,86 +449,11 @@ app.get("/api/tasks/:userId", async (req, res) => {
   }
 });
 
-// CREATE PAGE
-app.post("/api/pages", async (req, res) => {
-  try {
-    const { title, content, userId } = req.body;
-
-    const page = await prisma.page.create({
-      data: {
-        title,
-        content,
-        userId,
-      },
-    });
-
-    res.status(201).json(page);
-  } catch (error) {
-    res.status(500).json({
-      message: "Failed to create page",
-      error: error.message,
-    });
-  }
-});
-
-// GET PAGES BY USER
-app.get("/api/pages/:userId", async (req, res) => {
-  try {
-    const { userId } = req.params;
-
-    const pages = await prisma.page.findMany({
-      where: { userId },
-      orderBy: { createdAt: "desc" },
-    });
-
-    res.json(pages);
-  } catch (error) {
-    res.status(500).json({
-      message: "Failed to get pages",
-      error: error.message,
-    });
-  }
-});
-
-// UPDATE PAGE
-app.put("/api/pages/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { title, content } = req.body;
-
-    const page = await prisma.page.update({
-      where: { id },
-      data: { title, content },
-    });
-
-    res.json(page);
-  } catch (error) {
-    res.status(500).json({
-      message: "Failed to update page",
-      error: error.message,
-    });
-  }
-});
-
-// DELETE PAGE
-app.delete("/api/pages/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    await prisma.page.delete({
-      where: { id },
-    });
-
-    res.json({ message: "Page deleted successfully" });
-  } catch (error) {
-    res.status(500).json({
-      message: "Failed to delete page",
-      error: error.message,
-    });
-  }
-});
-
-// UPDATE TASK
+/**
+ * PUT /api/tasks/:id
+ * Description: Update a specific task by ID
+ * Body: { title, status, priority, tag }
+ */
 app.put("/api/tasks/:id", async (req, res) => {
   try {
     const { id } = req.params;
@@ -426,7 +476,10 @@ app.put("/api/tasks/:id", async (req, res) => {
   }
 });
 
-// DELETE TASK
+/**
+ * DELETE /api/tasks/:id
+ * Description: Delete a specific task by ID
+ */
 app.delete("/api/tasks/:id", async (req, res) => {
   try {
     const { id } = req.params;
@@ -444,47 +497,100 @@ app.delete("/api/tasks/:id", async (req, res) => {
   }
 });
 
-// UPDATE NOTE
-app.put("/api/notes/:id", async (req, res) => {
+// ==================== PAGES ENDPOINTS (Legacy/Unused) ====================
+
+/**
+ * POST /api/pages
+ * Description: Create a new page (legacy - may not be used)
+ */
+app.post("/api/pages", async (req, res) => {
   try {
-    const { id } = req.params;
-    const { title, content, type, icon } = req.body;
+    const { title, content, userId } = req.body;
 
-    const updateData = { title, content, type };
-    if (icon !== undefined) updateData.icon = icon;
-
-    const note = await prisma.note.update({
-      where: { id },
-      data: updateData,
+    const page = await prisma.page.create({
+      data: {
+        title,
+        content,
+        userId,
+      },
     });
 
-    res.json(note);
+    res.status(201).json(page);
   } catch (error) {
     res.status(500).json({
-      message: "Failed to update note",
+      message: "Failed to create page",
       error: error.message,
     });
   }
 });
 
-// DELETE NOTE
-app.delete("/api/notes/:id", async (req, res) => {
+/**
+ * GET /api/pages/:userId
+ * Description: Get all pages for a user (legacy)
+ */
+app.get("/api/pages/:userId", async (req, res) => {
   try {
-    const { id } = req.params;
+    const { userId } = req.params;
 
-    await prisma.note.delete({
-      where: { id },
+    const pages = await prisma.page.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
     });
 
-    res.json({ message: "Note deleted successfully" });
+    res.json(pages);
   } catch (error) {
     res.status(500).json({
-      message: "Failed to delete note",
+      message: "Failed to get pages",
       error: error.message,
     });
   }
 });
 
+/**
+ * PUT /api/pages/:id
+ * Description: Update a specific page (legacy)
+ */
+app.put("/api/pages/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, content } = req.body;
+
+    const page = await prisma.page.update({
+      where: { id },
+      data: { title, content },
+    });
+
+    res.json(page);
+  } catch (error) {
+    res.status(500).json({
+      message: "Failed to update page",
+      error: error.message,
+    });
+  }
+});
+
+/**
+ * DELETE /api/pages/:id
+ * Description: Delete a specific page (legacy)
+ */
+app.delete("/api/pages/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    await prisma.page.delete({
+      where: { id },
+    });
+
+    res.json({ message: "Page deleted successfully" });
+  } catch (error) {
+    res.status(500).json({
+      message: "Failed to delete page",
+      error: error.message,
+    });
+  }
+});
+
+// Start server on port 5000
 app.listen(5000, () => {
   console.log("Gemini server running on http://localhost:5000");
 });

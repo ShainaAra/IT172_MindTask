@@ -11,22 +11,50 @@ import HomeView from "../views/HomeView";
 import SearchView from "../views/SearchView";
 import { DEFAULT_NOTES, generateNewNote } from "../data/defaults";
 
+/**
+ * Component: Dashboard
+ * Description: Main dashboard component that orchestrates the entire application.
+ * Manages state for:
+ * - Sidebar navigation and chat panel
+ * - Note and task management
+ * - User authentication display
+ * - Theme switching
+ * - Modal dialogs for note creation
+ * - Routing between Home, Search, Notes Grid, Task Board, and individual notes
+ * 
+ * Features:
+ * - Collapsible sidebar
+ * - Dark/light mode toggle
+ * - User menu with logout
+ * - Title modal for new note creation
+ * - Type-based page rendering (welcome, notes-grid, tasks, regular notes)
+ * - Auto-selection of welcome note on first load
+ * 
+ * @returns {JSX.Element} Dashboard layout with sidebar, content area, and chat panel
+ */
 export default function Dashboard() {
+  // Authentication context for user data and CRUD operations
   const { user, getData, setNotes, setTasks, logout, getUserInitials, getUserColor } = useAuth();
-  const t = useTheme();
+  const t = useTheme(); // Theme context for styling
 
-  const [activeId, setActiveId] = useState(null);
-  const [activeNav, setActiveNav] = useState(null);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [chatOpen, setChatOpen] = useState(false);
-  const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const [showNotesGrid, setShowNotesGrid] = useState(false);
-  const [notesVersion, setNotesVersion] = useState(0);
-  const [showTitleModal, setShowTitleModal] = useState(false);
-  const [newNoteTitle, setNewNoteTitle] = useState("");
-  const [newlyCreatedNoteId, setNewlyCreatedNoteId] = useState(null); // Track newly created note
-  const userMenuRef = useRef(null);
+  // UI State Management
+  const [activeId, setActiveId] = useState(null);           // Currently selected note ID
+  const [activeNav, setActiveNav] = useState(null);         // Active navigation item ("Home", "Search", etc.)
+  const [sidebarOpen, setSidebarOpen] = useState(true);     // Sidebar visibility
+  const [chatOpen, setChatOpen] = useState(false);          // Chat panel visibility
+  const [userMenuOpen, setUserMenuOpen] = useState(false);  // User dropdown menu visibility
+  const [showNotesGrid, setShowNotesGrid] = useState(false); // Whether to show notes grid view
+  const [notesVersion, setNotesVersion] = useState(0);       // Version counter to force re-renders
+  const [showTitleModal, setShowTitleModal] = useState(false); // New note title modal visibility
+  const [newNoteTitle, setNewNoteTitle] = useState("");      // Title input for new note
+  const [newlyCreatedNoteId, setNewlyCreatedNoteId] = useState(null); // Track newly created note for special handling
+  
+  const userMenuRef = useRef(null); // Ref for detecting clicks outside user menu
 
+  /**
+   * Effect: Handle clicks outside user menu to close it
+   * Sets up event listener for closing dropdown when clicking elsewhere
+   */
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (userMenuRef.current && !userMenuRef.current.contains(event.target)) {
@@ -38,11 +66,15 @@ export default function Dashboard() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // Get user data from context (notes and tasks)
   const data = getData();
   const allNotes = data?.notes || [];
   const tasks = data?.tasks || [];
 
-  // Debug: Log all notes to console
+  /**
+   * Effect: Debug logging - logs all notes to console
+   * Useful for debugging note types and structure
+   */
   useEffect(() => {
     console.log("========== ALL NOTES FROM DB ==========");
     allNotes.forEach(n => {
@@ -51,39 +83,45 @@ export default function Dashboard() {
     console.log("=======================================");
   }, [allNotes]);
 
-  // Find the three main notes - try multiple methods
+  // Find the three main system notes by type or title
   let welcomeNote = allNotes.find(n => n.type === "welcome");
   let myNotesNote = allNotes.find(n => n.type === "notes-grid");
   let myTasksNote = allNotes.find(n => n.type === "tasks");
 
-  // If not found by type, try by title (for existing data)
+  // Fallback: If not found by type, try by title (for existing data compatibility)
   if (!welcomeNote) welcomeNote = allNotes.find(n => n.title === "Welcome to MindTask");
   if (!myNotesNote) myNotesNote = allNotes.find(n => n.title === "My Notes");
   if (!myTasksNote) myTasksNote = allNotes.find(n => n.title === "My Tasks");
 
+  // List of default page titles to filter out from user notes
   const defaultPageTitles = DEFAULT_NOTES.map((n) => n.title);
 
-  // SIDEBAR NOTES: ONLY the three main notes
+  // SIDEBAR NOTES: Only the three main system notes appear in sidebar
   const sidebarNotes = [
     welcomeNote,
     myNotesNote,
     myTasksNote
-  ].filter(n => n && n.id); // Remove undefined/null
+  ].filter(n => n && n.id); // Filter out any undefined/null values
 
-  // USER NOTES: only notes that are user-created, or notes with no type that don't match page titles
+  // USER NOTES: Only user-created notes or notes without type that don't match default titles
   const userNotes = allNotes.filter((n) =>
     n.type === "note" ||
     (!n.type && !defaultPageTitles.includes(n.title))
   );
 
-  // Set initial active note
+  /**
+   * Effect: Set initial active note to welcome note when dashboard loads
+   */
   useEffect(() => {
     if (!activeId && welcomeNote) {
       setActiveId(welcomeNote.id);
     }
   }, [welcomeNote, activeId]);
 
-  // Keep chat and welcome page synchronized once the welcome note is available
+  /**
+   * Effect: Keep chat and welcome page synchronized
+   * When chat opens, automatically navigate to welcome note
+   */
   useEffect(() => {
     if (chatOpen && welcomeNote?.id) {
       setActiveId(welcomeNote.id);
@@ -92,8 +130,16 @@ export default function Dashboard() {
     }
   }, [chatOpen, welcomeNote?.id]);
 
+  // Find the currently active note object
   const activeNote = allNotes.find((n) => n.id === activeId);
 
+  /**
+   * Function: handleSetActiveNote
+   * Description: Handles navigation when a note is clicked in sidebar
+   * Routes to appropriate view based on note type
+   * 
+   * @param {string} id - ID of the note to navigate to
+   */
   const handleSetActiveNote = (id) => {
     const clickedNote = allNotes.find(n => n.id === id);
     if (clickedNote?.type === "notes-grid" || clickedNote?.title === "My Notes") {
@@ -114,26 +160,46 @@ export default function Dashboard() {
     }
   };
 
+  /**
+   * Function: handleOpenNote
+   * Description: Opens a specific note from the notes grid view
+   * 
+   * @param {Object} note - Note object to open
+   */
   const handleOpenNote = (note) => {
     setActiveId(note.id);
     setShowNotesGrid(false);
     setNewlyCreatedNoteId(null); // Reset flag when opening existing note
   };
 
+  /**
+   * Function: handleBackToNotesGrid
+   * Description: Navigates back to the notes grid view from a note
+   */
   const handleBackToNotesGrid = () => {
     setShowNotesGrid(true);
     setActiveNav(null);
     setActiveId(myNotesNote?.id || null);
-    setNotesVersion(prev => prev + 1);
+    setNotesVersion(prev => prev + 1); // Force re-render of NotesGrid
     setNewlyCreatedNoteId(null); // Reset flag when going back
   };
 
+  /**
+   * Function: openNewNoteModal
+   * Description: Opens the modal dialog for creating a new note
+   * Pre-fills title with default "Untitled X" based on existing notes count
+   */
   const openNewNoteModal = () => {
     const defaultTitle = `Untitled ${userNotes.length + 1}`;
     setNewNoteTitle(defaultTitle);
     setShowTitleModal(true);
   };
 
+  /**
+   * Function: createNewNote
+   * Description: Creates a new note with user-provided or default title
+   * Adds to notes list, navigates to the new note, and tracks it as newly created
+   */
   const createNewNote = () => {
     const newNote = generateNewNote(user?.id);
     if (newNoteTitle && newNoteTitle.trim()) {
@@ -149,11 +215,22 @@ export default function Dashboard() {
     setNewNoteTitle("");
   };
 
+  /**
+   * Function: cancelModal
+   * Description: Closes the new note modal without creating a note
+   */
   const cancelModal = () => {
     setShowTitleModal(false);
     setNewNoteTitle("");
   };
 
+  /**
+   * Function: deleteNote
+   * Description: Deletes a note by ID, updates notes list,
+   * and navigates to welcome note if the active note was deleted
+   * 
+   * @param {string} id - ID of the note to delete
+   */
   const deleteNote = (id) => {
     setNotes((prevNotes) => prevNotes.filter((n) => n.id !== id));
     if (activeId === id) {
@@ -164,6 +241,14 @@ export default function Dashboard() {
     setNewlyCreatedNoteId(null); // Reset flag when deleting
   };
 
+  /**
+   * Function: updateNote
+   * Description: Updates a specific field of a note (title, content, icon)
+   * 
+   * @param {string} id - ID of the note to update
+   * @param {string} field - Field name to update ("title", "content", "icon")
+   * @param {any} val - New value for the field
+   */
   const updateNote = (id, field, val) => {
     setNotes((prevNotes) => {
       const updatedNotes = prevNotes.map((n) => {
@@ -177,8 +262,16 @@ export default function Dashboard() {
     setNotesVersion(prev => prev + 1);
   };
 
+  /**
+   * Function: cleanTitle
+   * Description: Removes " 🌱" suffix from note titles for display
+   * 
+   * @param {string} title - Title to clean
+   * @returns {string} Cleaned title without suffix
+   */
   const cleanTitle = (title = "") => title.replace(" 🌱", "");
 
+  // Determine the title to display in the top bar
   const topbarTitle = activeNav
     ? activeNav
     : showNotesGrid
@@ -187,7 +280,15 @@ export default function Dashboard() {
     ? cleanTitle(activeNote.title)
     : "MindTask";
 
+  /**
+   * Function: renderContent
+   * Description: Main content router - renders appropriate component based on current view
+   * Handles: Home, Search, Notes Grid, Task Board, Page Editor, and fallback states
+   * 
+   * @returns {JSX.Element} Content component for the current view
+   */
   const renderContent = () => {
+    // Home View routing
     if (activeNav === "Home") {
       return (
         <HomeView
@@ -201,6 +302,7 @@ export default function Dashboard() {
       );
     }
 
+    // Search View routing
     if (activeNav === "Search") {
       return (
         <SearchView
@@ -213,14 +315,11 @@ export default function Dashboard() {
       );
     }
 
-    if (activeNav === "Inbox") {
-      return <InboxView t={t} />;
-    }
-
+    // Notes Grid View (shows all user-created notes)
     if (showNotesGrid) {
       return (
         <NotesGrid
-          key={notesVersion}
+          key={notesVersion} // Force re-render when notes change
           notes={userNotes}
           onOpen={handleOpenNote}
           onAdd={openNewNoteModal}
@@ -231,10 +330,12 @@ export default function Dashboard() {
       );
     }
 
+    // Task Board View
     if (activeNote?.type === "tasks" || activeNote?.title === "My Tasks") {
       return <TaskBoard tasks={tasks} onUpdate={setTasks} />;
     }
 
+    // User-Created Note Editor (with back button)
     if (activeNote && (activeNote.type === "note" || userNotes.some(n => n.id === activeNote?.id))) {
       return (
         <PageEditor 
@@ -243,11 +344,12 @@ export default function Dashboard() {
           onUpdate={updateNote}
           user={user} 
           onBack={handleBackToNotesGrid}
-          isNewlyCreated={newlyCreatedNoteId === activeNote.id} // Pass flag to PageEditor
+          isNewlyCreated={newlyCreatedNoteId === activeNote.id} // Pass flag to trigger special behavior
         />
       );
     }
 
+    // System Note Editor (welcome note, etc. - no back button)
     if (activeNote) {
       return (
         <PageEditor 
@@ -256,11 +358,12 @@ export default function Dashboard() {
           onUpdate={updateNote}
           user={user} 
           onBack={null}
-          isNewlyCreated={newlyCreatedNoteId === activeNote.id} // Pass flag to PageEditor
+          isNewlyCreated={newlyCreatedNoteId === activeNote.id}
         />
       );
     }
 
+    // Fallback empty state
     return <div style={{ padding: "48px", color: t.muted }}>Select a page from the sidebar</div>;
   };
 
@@ -274,6 +377,7 @@ export default function Dashboard() {
         color: t.text,
       }}
     >
+      {/* Sidebar Component */}
       <Sidebar
         pages={sidebarNotes}
         activePage={activeNav ? null : (showNotesGrid ? null : activeNote)}
@@ -293,7 +397,9 @@ export default function Dashboard() {
         setActiveNav={setActiveNav}
       />
 
+      {/* Main Content Area */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+        {/* Top Bar */}
         <div
           style={{
             height: 70,
@@ -305,6 +411,7 @@ export default function Dashboard() {
             background: t.surface,
           }}
         >
+          {/* Sidebar Toggle Button */}
           <button
             onClick={() => setSidebarOpen((v) => !v)}
             style={{
@@ -326,8 +433,10 @@ export default function Dashboard() {
             <Ic n="menu" size={16} />
           </button>
 
+          {/* Current View Title */}
           <div style={{ flex: 1, fontWeight: 600 }}>{topbarTitle}</div>
 
+          {/* Theme Toggle Button */}
           <button
             onClick={t.toggle}
             style={{
@@ -349,6 +458,7 @@ export default function Dashboard() {
             <Ic n={t.dark ? "sun" : "moon"} size={16} />
           </button>
 
+          {/* User Menu Dropdown */}
           <div ref={userMenuRef} style={{ position: "relative" }}>
             <div
               onClick={() => setUserMenuOpen(!userMenuOpen)}
@@ -373,6 +483,7 @@ export default function Dashboard() {
               {getUserInitials()}
             </div>
 
+            {/* Dropdown Menu Content */}
             {userMenuOpen && (
               <div
                 style={{
@@ -388,6 +499,7 @@ export default function Dashboard() {
                   minWidth: 220,
                 }}
               >
+                {/* User Info Section */}
                 <div
                   style={{
                     padding: "8px 10px 10px",
@@ -403,6 +515,7 @@ export default function Dashboard() {
                   </div>
                 </div>
 
+                {/* Logout Button */}
                 <button
                   onClick={logout}
                   style={{
@@ -426,13 +539,16 @@ export default function Dashboard() {
           </div>
         </div>
 
+        {/* Dynamic Content Area */}
         <div style={{ flex: 1, overflow: "auto" }}>
           {renderContent()}
         </div>
       </div>
 
+      {/* Chat Panel (conditionally rendered) */}
       {chatOpen && <ChatPanel onClose={() => setChatOpen(false)} />}
 
+      {/* New Note Title Modal */}
       {showTitleModal && (
         <div
           style={{
@@ -447,7 +563,7 @@ export default function Dashboard() {
             justifyContent: "center",
             zIndex: 1000,
           }}
-          onClick={cancelModal}
+          onClick={cancelModal} // Click backdrop to cancel
         >
           <div
             style={{
@@ -459,7 +575,7 @@ export default function Dashboard() {
               boxShadow: t.shadowLg,
               border: `1px solid ${t.border}`,
             }}
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()} // Prevent backdrop click when clicking inside modal
           >
             <h2 style={{ fontSize: "1.5rem", fontWeight: 600, color: t.text, marginBottom: 8 }}>
               New Note
@@ -468,11 +584,12 @@ export default function Dashboard() {
               Enter a title for your new note
             </p>
             
+            {/* Title Input Field */}
             <input
               type="text"
               value={newNoteTitle}
               onChange={(e) => setNewNoteTitle(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && createNewNote()}
+              onKeyDown={(e) => e.key === "Enter" && createNewNote()} // Enter key submits
               onClick={(e) => e.stopPropagation()}
               placeholder="Note title..."
               autoFocus
@@ -490,6 +607,7 @@ export default function Dashboard() {
               }}
             />
             
+            {/* Modal Action Buttons */}
             <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
               <button
                 onClick={cancelModal}

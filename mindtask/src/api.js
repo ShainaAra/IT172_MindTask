@@ -1,7 +1,24 @@
+/**
+ * API Client Module
+ * Description: Centralized API communication layer for all backend operations.
+ * Base URL points to local backend server running on port 5000.
+ * Handles authentication, notes CRUD, tasks CRUD, and chat functionality.
+ * All functions include error handling and throw meaningful errors for UI consumption.
+ */
+
 const API_BASE = "http://localhost:5000/api";
 
-// ━━━━━ AUTH ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// ━━━━━ AUTHENTICATION API ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+/**
+ * Function: registerUser
+ * Description: Registers a new user account
+ * @param {string} name - User's full name
+ * @param {string} email - User's email address
+ * @param {string} password - User's password
+ * @returns {Promise<Object>} User data and JWT token
+ * @throws {Error} If registration fails
+ */
 export async function registerUser(name, email, password) {
   try {
     const res = await fetch(`${API_BASE}/auth/register`, {
@@ -18,6 +35,14 @@ export async function registerUser(name, email, password) {
   }
 }
 
+/**
+ * Function: loginUser
+ * Description: Authenticates an existing user
+ * @param {string} email - User's email address
+ * @param {string} password - User's password
+ * @returns {Promise<Object>} User data and JWT token
+ * @throws {Error} If login fails
+ */
 export async function loginUser(email, password) {
   try {
     const res = await fetch(`${API_BASE}/auth/login`, {
@@ -34,8 +59,18 @@ export async function loginUser(email, password) {
   }
 }
 
-// ━━━━━ NOTES ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// ━━━━━ NOTES API ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+/**
+ * Function: createNote
+ * Description: Creates a new note for a user
+ * @param {string} title - Note title
+ * @param {string} content - Note content (markdown)
+ * @param {string} type - Note type (welcome, notes-grid, tasks, note)
+ * @param {string} userId - ID of the user owning the note
+ * @param {string} icon - Emoji icon for the note
+ * @returns {Promise<Object>} Created note object
+ */
 export async function createNote(title, content, type, userId, icon) {
   try {
     const res = await fetch(`${API_BASE}/notes`, {
@@ -52,6 +87,12 @@ export async function createNote(title, content, type, userId, icon) {
   }
 }
 
+/**
+ * Function: getNotes
+ * Description: Fetches all notes for a specific user
+ * @param {string} userId - ID of the user
+ * @returns {Promise<Array>} Array of note objects
+ */
 export async function getNotes(userId) {
   try {
     const res = await fetch(`${API_BASE}/notes/${userId}`);
@@ -63,6 +104,16 @@ export async function getNotes(userId) {
   }
 }
 
+/**
+ * Function: updateNote
+ * Description: Updates an existing note
+ * @param {string} id - Note ID
+ * @param {string} title - Updated title
+ * @param {string} content - Updated content
+ * @param {string} type - Updated type
+ * @param {string} icon - Updated icon
+ * @returns {Promise<Object>} Updated note object
+ */
 export async function updateNote(id, title, content, type, icon) {
   try {
     const res = await fetch(`${API_BASE}/notes/${id}`, {
@@ -79,6 +130,12 @@ export async function updateNote(id, title, content, type, icon) {
   }
 }
 
+/**
+ * Function: deleteNote
+ * Description: Deletes a note by ID
+ * @param {string} id - Note ID
+ * @returns {Promise<Object>} Deletion confirmation
+ */
 export async function deleteNote(id) {
   try {
     const res = await fetch(`${API_BASE}/notes/${id}`, {
@@ -93,8 +150,18 @@ export async function deleteNote(id) {
   }
 }
 
-// ━━━━━ TASKS ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// ━━━━━ TASKS API ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+/**
+ * Function: createTask
+ * Description: Creates a new task for a user
+ * @param {string} title - Task title
+ * @param {string} status - Task status (todo, in-progress, done)
+ * @param {string} priority - Task priority (high, medium, low)
+ * @param {string} userId - ID of the user owning the task
+ * @param {string} tag - Task category tag (default: "Other")
+ * @returns {Promise<Object>} Created task object
+ */
 export async function createTask(title, status, priority, userId, tag = "Other") {
   try {
     const res = await fetch(`${API_BASE}/tasks`, {
@@ -111,6 +178,12 @@ export async function createTask(title, status, priority, userId, tag = "Other")
   }
 }
 
+/**
+ * Function: getTasks
+ * Description: Fetches all tasks for a specific user
+ * @param {string} userId - ID of the user
+ * @returns {Promise<Array>} Array of task objects
+ */
 export async function getTasks(userId) {
   try {
     const res = await fetch(`${API_BASE}/tasks/${userId}`);
@@ -122,6 +195,16 @@ export async function getTasks(userId) {
   }
 }
 
+/**
+ * Function: updateTask
+ * Description: Updates an existing task
+ * @param {string} id - Task ID
+ * @param {string} title - Updated title
+ * @param {string} status - Updated status
+ * @param {string} priority - Updated priority
+ * @param {string} tag - Updated tag
+ * @returns {Promise<Object>} Updated task object
+ */
 export async function updateTask(id, title, status, priority, tag) {
   try {
     const res = await fetch(`${API_BASE}/tasks/${id}`, {
@@ -138,6 +221,12 @@ export async function updateTask(id, title, status, priority, tag) {
   }
 }
 
+/**
+ * Function: deleteTask
+ * Description: Deletes a task by ID
+ * @param {string} id - Task ID
+ * @returns {Promise<Object>} Deletion confirmation
+ */
 export async function deleteTask(id) {
   try {
     const res = await fetch(`${API_BASE}/tasks/${id}`, {
@@ -152,8 +241,15 @@ export async function deleteTask(id) {
   }
 }
 
-// ━━━━━ CHAT ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// ━━━━━ CHAT API ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+/**
+ * Function: sendChatMessage
+ * Description: Sends a message to the AI wellness companion and receives a response
+ * @param {string} message - User's message to the AI
+ * @param {string} userId - ID of the user (for context/personalization)
+ * @returns {Promise<Object>} AI response object containing reply
+ */
 export async function sendChatMessage(message, userId) {
   try {
     const res = await fetch(`${API_BASE}/chat`, {
@@ -170,6 +266,12 @@ export async function sendChatMessage(message, userId) {
   }
 }
 
+/**
+ * Function: getChatHistory
+ * Description: Fetches complete chat history for a specific user
+ * @param {string} userId - ID of the user
+ * @returns {Promise<Array>} Array of chat message/response pairs
+ */
 export async function getChatHistory(userId) {
   try {
     const res = await fetch(`${API_BASE}/chats/${userId}`);
