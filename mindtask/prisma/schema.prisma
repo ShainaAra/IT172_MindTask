@@ -1,55 +1,104 @@
+/**
+ * Prisma Database Schema (schema.prisma)
+ * Description: Defines the database models and relationships for the MindTask application.
+ * Uses MongoDB as the database provider with Prisma ORM.
+ * 
+ * Models:
+ * - User: Authentication and user profile
+ * - Note: User-created notes and system pages
+ * - Task: Task board items with status and priority
+ * - Chat: AI wellness conversation history
+ */
+
+// Prisma Client Generator Configuration
+// Generates TypeScript client for database operations
 generator client {
   provider = "prisma-client-js"
 }
 
+// Database Configuration
+// Uses MongoDB with connection URL from environment variables
 datasource db {
   provider = "mongodb"
   url      = env("DATABASE_URL")
 }
 
+/**
+ * User Model
+ * Description: Stores user account information and authentication data
+ * Relationships: 
+ * - One-to-Many with Note (a user can have many notes)
+ * - One-to-Many with Task (a user can have many tasks)
+ * - One-to-Many with Chat (a user can have many chat messages)
+ */
 model User {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  email     String   @unique
-  password  String
-  name      String?
-  createdAt DateTime @default(now())
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId  // MongoDB ObjectId
+  email     String   @unique                                         // Unique email for login
+  password  String                                                   // Hashed password (bcrypt)
+  name      String?                                                  // User's full name (optional)
+  createdAt DateTime @default(now())                                 // Account creation timestamp
 
-  notes     Note[]
-  tasks     Task[]
-  chats     Chat[]
+  // Relationships
+  notes     Note[]    // All notes owned by this user
+  tasks     Task[]    // All tasks owned by this user
+  chats     Chat[]    // All chat messages from this user
 }
 
+/**
+ * Note Model
+ * Description: Stores user notes and special system pages
+ * Types: 
+ * - "welcome": Welcome page with chat integration
+ * - "notes-grid": Notes grid view page
+ * - "tasks": Task board page
+ * - "note": Regular user-created note
+ */
 model Note {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  title     String
-  content   String
-  icon      String?  @default("📄")
-  type      String   @default("note") // "welcome", "notes-grid", "tasks", "note"
-  userId    String   @db.ObjectId
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId  // MongoDB ObjectId
+  title     String                                                   // Note title
+  content   String                                                   // Note content (markdown)
+  icon      String?  @default("📄")                                 // Emoji icon for the note
+  type      String   @default("note")                               // Note type (welcome, notes-grid, tasks, note)
+  userId    String   @db.ObjectId                                   // Foreign key to User
+  createdAt DateTime @default(now())                                // Creation timestamp
+  updatedAt DateTime @updatedAt                                     // Last update timestamp (auto-updated)
 
-  user User @relation(fields: [userId], references: [id])
+  // Relationship
+  user User @relation(fields: [userId], references: [id])           // Many-to-One with User
 }
 
+/**
+ * Task Model
+ * Description: Stores tasks in the Kanban board
+ * Status options: "todo", "in-progress", "done"
+ * Priority options: "low", "medium", "high"
+ * Tag options: "Dev", "Design", "AI", "QA", "Planning", "DevOps", "Research", "Other"
+ */
 model Task {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  title     String
-  status    String   // todo | in-progress | done
-  priority  String   // low | medium | high
-  tag       String   @default("Other") // Dev | Design | AI | QA | Planning | DevOps | Research | Other
-  userId    String   @db.ObjectId
-  createdAt DateTime @default(now())
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId  // MongoDB ObjectId
+  title     String                                                   // Task title
+  status    String                                                   // Current status (todo/in-progress/done)
+  priority  String                                                   // Priority level (low/medium/high)
+  tag       String   @default("Other")                              // Category tag (defaults to "Other")
+  userId    String   @db.ObjectId                                   // Foreign key to User
+  createdAt DateTime @default(now())                                // Creation timestamp
 
-  user User @relation(fields: [userId], references: [id])
+  // Relationship
+  user User @relation(fields: [userId], references: [id])           // Many-to-One with User
 }
 
+/**
+ * Chat Model
+ * Description: Stores conversation history with MindEase AI wellness assistant
+ * Each record contains both user message and AI response
+ */
 model Chat {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  message   String
-  response  String
-  userId    String   @db.ObjectId
-  createdAt DateTime @default(now())
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId  // MongoDB ObjectId
+  message   String                                                   // User's message
+  response  String                                                   // AI's response
+  userId    String   @db.ObjectId                                   // Foreign key to User
+  createdAt DateTime @default(now())                                // Message timestamp
 
-  user User @relation(fields: [userId], references: [id])
+  // Relationship
+  user User @relation(fields: [userId], references: [id])           // Many-to-One with User
 }
