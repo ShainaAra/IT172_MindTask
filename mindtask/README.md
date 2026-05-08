@@ -127,13 +127,13 @@ Authentication
 
 TECH STACK
 
-Layer                        Technology
-Frontend -                  React (Vite)
-Styling -          Inline styles + CSS (customizable)
-State -         React Context API (useAuth, useTheme)
-Icons -          Font Awesome 6 (via Ic.jsx wrapper)
-Data Layer -  Prisma (schema in prisma/schema.prisma)
-Backend / DB - MongoDB - the app is ready to 
-                        connect to PostgreSQL / SQLite via Prisma
+Layer                                                              Technology
+Frontend -                                                        React (Vite)
+Styling -                                             Inline styles + CSS (customizable)
+State -                                               React Context API (useAuth, useTheme)
+Icons -                                               Font Awesome 6 (via Ic.jsx wrapper)
+Data Layer -                                          Prisma (schema in prisma/schema.prisma)
+Backend / DB -                                        MongoDB - the app is ready to 
+                                                      connect to PostgreSQL / SQLite via Prisma
 
 
